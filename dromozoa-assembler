@@ -19,179 +19,332 @@
 
 local json = require "dromozoa.json"
 
-local is_little_endian = true
-local sizeof_int = 4
-local sizeof_integer = 8
-local sizeof_size_t = 8
+local SIGNATURE = "\27Lua"
+local DATA = "\25\147\r\n\26\n"
 
 local function reader(handle)
   local self = {
-    _handle = handle;
+    _h = handle;
+    _i = 1;
   }
 
-  function self:read_byte()
-    return self._handle:read(1):byte()
+  function self:raise(message)
+    if message then
+      error(message .. " at position " .. self._i)
+    else
+      error("read error at position " .. self._i)
+    end
   end
 
-  function self:read_integer_impl(n)
-    local buffer = { self._handle:read(n):byte(1, -1) }
-    -- byte swap
+  function self:read(n)
+    local v = self._h:read(n)
+    if v then
+      self._i = self._i + n
+      return v
+    end
+  end
+
+  function self:read_byte()
+    local v = self:read(1)
+    if v then
+      return v:byte()
+    end
+  end
+
+  function self:read_bytes(n)
+    local v = self:read(n)
+    if v then
+      return { v:byte(1, -1) }
+    end
+  end
+
+  function self:decode_integer(data)
     local v = 0
-    for i = #buffer, 1, -1 do
-      v = v * 256
-      v = v + buffer[i]
+    if self._header.is_little_endian then
+      for i = #data, 1, -1 do
+        v = v * 256 + data:byte(i)
+      end
+    else
+      for i = 1, #data do
+        v = v * 256 + data:byte(i)
+      end
     end
     return v
   end
 
   function self:read_int()
-    return self:read_integer_impl(sizeof_int)
+    return self:decode_integer(self:read(self._header.sizeof_int))
   end
 
   function self:read_integer()
-    return self:read_integer_impl(sizeof_integer)
+    return self:decode_integer(self:read(self._header.sizeof_integer))
   end
 
   function self:read_size_t()
-    return self:read_integer_impl(sizeof_size_t)
+    return self:decode_integer(self:read(self._header.sizeof_size_t))
   end
 
   function self:read_instruction()
-    return { self._handle:read(4):byte(1, -1) }
+    return self:read_bytes(self._header.sizeof_instruction)
   end
 
-  function self:read_string()
+  function self:read_number()
+    return self:read_bytes(self._header.sizeof_number)
+  end
+
+  function self:read_string_5_1()
+    local n = self:read_size_t()
+    if n ~= 0 then
+      local v = self:read(n - 1)
+      if self:read_byte() ~= 0 then
+        self:raise()
+      end
+      return v
+    end
+  end
+
+  self.read_string_5_2 = self.read_string_5_1
+
+  function self:read_string_5_3()
     local n = self:read_byte()
     if n == 0 then
       return nil
     elseif n == 255 then
       n = self:read_size_t()
     end
-    return self._handle:read(n - 1)
+    return self:read(n - 1)
   end
 
-  function self:check_eof()
-    local v = self._handle:read(1)
-    assert(v == nil)
+  function self:read_string()
+    return self["read_string" .. self._version_suffix](self)
   end
 
-  function self:check_literal(literal)
-    local v = self._handle:read(#literal)
-    assert(v)
-    return v
+  function self:read_header_5_1(header)
+    header.is_little_endian = self:read_byte() == 1
+    header.sizeof_int = self:read_byte()
+    header.sizeof_size_t = self:read_byte()
+    header.sizeof_instruction = self:read_byte()
+    header.sizeof_number = self:read_byte()
+    header.is_number_integral = self:read_byte() ~= 0
+  end
+
+  function self:read_header_5_2(header)
+    header.is_little_endian = self:read_byte() == 1
+    header.sizeof_int = self:read_byte()
+    header.sizeof_size_t = self:read_byte()
+    header.sizeof_instruction = self:read_byte()
+    header.sizeof_number = self:read_byte()
+    header.is_number_integral = self:read_byte() ~= 0
+    if self:read(#DATA) ~= DATA then
+      self:raise "invalid data"
+    end
+  end
+
+  function self:read_header_5_3(header)
+    if self:read(#DATA) ~= DATA then
+      self:raise "invalid data"
+    end
+    header.sizeof_int = self:read_byte()
+    header.sizeof_size_t = self:read_byte()
+    header.sizeof_instruction = self:read_byte()
+    header.sizeof_integer = self:read_byte()
+    header.sizeof_number = self:read_byte()
+
+    local magic_integer = self:read(header.sizeof_integer)
+    header.is_little_endian = magic_integer:byte(1) ~= 0
+    if self:decode_integer(magic_integer) ~= 0x5678 then
+      self:raise "invalid magic integer"
+    end
+
+    local magic_number = self:read(header.sizeof_number)
   end
 
   function self:read_header()
     local header = {}
+    self._header = header
 
-    header.LUA_SIGNATURE = self:check_literal("\27Lua")
+    if self:read(#SIGNATURE) ~= SIGNATURE then
+      self:raise "invalid signature"
+    end
+
     local version = self:read_byte()
-    header.LUAC_VERSION = {
-      LUAC_VERSION = version;
-      LUA_VERSION_MAJOR = math.floor(version / 16);
-      LUA_VERSION_MINOR = version % 16;
-    }
-    header.LUAC_FORMAT = self:read_byte()
-    self:check_literal("\25\147\r\n\26\n") -- not UTF-8
-    header["sizeof(int)"] = self:read_byte()
-    header["sizeof(size_t)"] = self:read_byte()
-    header["sizeof(Instruction)"] = self:read_byte()
-    header["sizeof(lua_Integer)"] = self:read_byte()
-    header["sizeof(lua_Number)"] = self:read_byte()
-    header.LUAC_INT = self:read_integer()
-    header.LUAC_NUM = { self._handle:read(8):byte(1, -1) }
+    if version < 81 or 84 < version then
+      self:raise "unsupported version"
+    end
+    header.minor_version = version % 16
+    header.major_version = (version - header.minor_version) / 16
+    self._version_suffix = string.format("_%d_%d", header.major_version, header.minor_version)
+
+    local format = self:read_byte()
+    if format ~= 0 then
+      self:raise "unsupported format"
+    end
+
+    self["read_header" .. self._version_suffix](self, header)
     return header
   end
 
-  function self:read_code()
+  function self:read_code(func)
     local code = {}
-    local n = self:read_int()
-    for i = 1, n do
+    func.code = code
+    for i = 1, self:read_int() do
       code[i] = self:read_instruction()
     end
-    return code
   end
 
-  function self:read_constants()
+  function self:read_constants(func)
     local constants = {}
-    local n = self:read_int()
-    for i = 1, n do
+    func.constants = constants
+    for i = 1, self:read_int() do
       local t = self:read_byte()
+      local v
       if t == 0 then -- LUA_TNIL
-        constants[i] = nil
+        v = nil
       elseif t == 1 then -- LUA_TBOOLEAN
-        constants[i] = self:read_byte() ~= 0
-      elseif t == 3 then -- LUA_TNUMFLT
-        constants[i] = { self._handle:read(8):byte(1, -1) }
+        v = self:read_byte() ~= 0
+      elseif t == 3 then -- LUA_TNUMBER(LUA_TNUMFLT)
+        v = self:read_number()
       elseif t == 19 then -- LUA_TNUMINT
-        constants[i] = self:read_integer()
-      elseif t == 4 or t == 20 then -- LUA_STRING
-        constants[i] = self:read_string()
+        v = self:read_integer()
+      elseif t == 4 or t == 20 then -- LUA_TSTRING (LUA_TSHRSTR), LUA_TLNGSTR
+        v = self:read_string()
       end
+      constants[i] = v
     end
-    return constants
   end
 
-  function self:read_upvalues()
-    local upalues = {}
-    local n = self:read_int()
-    for i = 1, n do
-      local instack = self:read_byte()
-      local idx = self:read_byte()
-      upalues[i] = { instack = instack; idx = idx }
+  function self:read_upvalues(func)
+    local upvalues = {}
+    func.upvalues = upvalues
+    for i = 1, self:read_int() do
+      local upvalue = {}
+      upvalues[i] = upvalue
+      upvalue.in_stack = self:read_byte()
+      upvalue.idx = self:read_byte()
     end
-    return upalues
   end
 
-  function self:read_protos()
+  function self:read_protos(func)
     local protos = {}
-    local n = self:read_int()
-    for i = 1, n do
+    func.protos = protos
+    for i = 1, self:read_int() do
       protos[i] = self:read_function()
     end
-    return protos
   end
 
-  function self:read_debug()
-    local debug = {
-      lineinfo = {};
-      localvars = {};
-      upvalues = {};
-    }
-    local n = self:read_int()
-    for i = 1, n do
-      debug.lineinfo[i] = self:read_int()
+  function self:read_debug_5_1(func)
+    local line_info = {}
+    func.line_info = line_info
+    for i = 1, self:read_int() do
+      line_info[i] = self:read_int()
     end
-    local n = self:read_int()
-    for i = 1, n do
-      local varname = self:read_string()
-      local startpc = self:read_int()
-      local endpc = self:read_int()
-      debug.localvars[i] = { varname = varname; startpc = startpc; endpc = endpc }
+    local loc_vars = {}
+    func.loc_vars = {}
+    for i = 1, self:read_int() do
+      local loc_var = {}
+      loc_vars[i] = loc_var
+      loc_var.varname = self:read_string()
+      loc_var.startpc = self:read_int()
+      loc_var.endpc = self:read_int()
     end
-    local n = self:read_int()
-    for i = 1, n do
+    local upvalues = {}
+    func.upvalues = upvalues
+    for i = 1, self:read_int() do
       local name = self:read_string()
-      debug.upvalues = { name = name }
+      upvalues[i] = { name }
     end
+  end
+
+  function self:read_debug_5_2(func)
+    func.source = self:read_string()
+    local line_info = {}
+    func.line_info = line_info
+    for i = 1, self:read_int() do
+      line_info[i] = self:read_int()
+    end
+    local loc_vars = {}
+    func.loc_vars = {}
+    for i = 1, self:read_int() do
+      local loc_var = {}
+      loc_vars[i] = loc_var
+      loc_var.varname = self:read_string()
+      loc_var.startpc = self:read_int()
+      loc_var.endpc = self:read_int()
+    end
+    for i = 1, self:read_int() do
+      func.upvalues[i].name = self:read_string()
+    end
+  end
+
+  function self:read_debug_5_3(func)
+    local line_info = {}
+    func.line_info = line_info
+    for i = 1, self:read_int() do
+      line_info[i] = self:read_int()
+    end
+    local loc_vars = {}
+    func.loc_vars = {}
+    for i = 1, self:read_int() do
+      local loc_var = {}
+      loc_vars[i] = loc_var
+      loc_var.varname = self:read_string()
+      loc_var.startpc = self:read_int()
+      loc_var.endpc = self:read_int()
+    end
+    for i = 1, self:read_int() do
+      func.upvalues[i].name = self:read_string()
+    end
+  end
+
+  function self:read_debug(func)
+    self["read_debug" .. self._version_suffix](self, func)
+  end
+
+  function self:read_function_5_1(func)
+    func.source = self:read_string()
+    func.line_defined = self:read_int()
+    func.last_line_defined = self:read_int()
+    func.nups = self:read_byte()
+    func.num_params = self:read_byte()
+    func.is_vararg = self:read_byte() ~= 0
+    func.max_stack_size = self:read_byte()
+    self:read_code(func)
+    self:read_constants(func)
+    self:read_protos(func)
+    self:read_debug(func)
+  end
+
+  function self:read_function_5_2(func)
+    func.line_defined = self:read_int()
+    func.last_line_defined = self:read_int()
+    func.num_params = self:read_byte()
+    func.is_vararg = self:read_byte() ~= 0
+    func.max_stack_size = self:read_byte()
+    self:read_code(func)
+    self:read_constants(func)
+    self:read_protos(func)
+    self:read_upvalues(func)
+    self:read_debug(func)
+  end
+
+  function self:read_function_5_3(func)
+    func.source = self:read_string()
+    func.line_defined = self:read_int()
+    func.last_line_defined = self:read_int()
+    func.num_params = self:read_byte()
+    func.is_vararg = self:read_byte() ~= 0
+    func.max_stack_size = self:read_byte()
+    self:read_code(func)
+    self:read_constants(func)
+    self:read_upvalues(func)
+    self:read_protos(func)
+    self:read_debug(func)
   end
 
   function self:read_function()
-    local closure = {}
-
-    closure.source = self:read_string()
-    closure.linedefined = self:read_int()
-    closure.lastlinedefined = self:read_int()
-    closure.numparams = self:read_byte()
-    closure.is_vaarg = self:read_byte()
-    closure.maxstacksize = self:read_byte()
-    closure.code = self:read_code()
-    closure.constants = self:read_constants()
-    closure.upvalues = self:read_upvalues()
-    closure.protos = self:read_protos()
-    closure.debug = self:read_debug()
-
-    return closure
+    local func = {}
+    self["read_function" .. self._version_suffix](self, func)
+    return func
   end
 
   return self
@@ -200,8 +353,10 @@ end
 local r = reader(io.stdin)
 local header = r:read_header()
 print(json.encode(header))
-local sizeupvalues = r:read_byte()
-print(sizeupvalues)
-local closure = r:read_function()
-print(json.encode(closure))
-r:check_eof()
+
+if header.minor_version == 3 then
+  local sizeupvalues = r:read_byte()
+  print(sizeupvalues)
+end
+print(json.encode(r:read_function()))
+assert(r:read_byte() == nil)
