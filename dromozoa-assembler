@@ -17,7 +17,7 @@
 -- You should have received a copy of the GNU General Public License
 -- along with dromozoa-assembler.  If not, see <http://www.gnu.org/licenses/>.
 
-local json = require "dromozoa.json"
+local unpack = table.unpack or unpack
 
 local SIGNATURE = "\27Lua"
 local DATA = "\25\147\r\n\26\n"
@@ -58,15 +58,15 @@ local function reader(handle)
     end
   end
 
-  function self:decode_integer(data)
+  function self:decode_integer(s)
     local v = 0
     if self._header.is_little_endian then
-      for i = #data, 1, -1 do
-        v = v * 256 + data:byte(i)
+      for i = #s, 1, -1 do
+        v = v * 256 + s:byte(i)
       end
     else
-      for i = 1, #data do
-        v = v * 256 + data:byte(i)
+      for i = 1, #s do
+        v = v * 256 + s:byte(i)
       end
     end
     return v
@@ -347,16 +347,69 @@ local function reader(handle)
     return func
   end
 
+  function self:read_chunk()
+    local chunk = {}
+    chunk.header = self:read_header()
+    if self._header.minor_version == 3 then
+      chunk.size_upvalues = self:read_byte()
+    end
+    chunk.func = self:read_function()
+    return chunk
+  end
+
+  return self
+end
+
+local function writer(handle)
+  local self = {
+    _h = handle;
+  }
+
+  function self:write(s)
+    self._h:write(s)
+  end
+
+  function self:write_byte(v)
+    self:write(string.char(v))
+  end
+
+  function self:encode_integer(v, n)
+    local buffer = {}
+    if self._header.is_little_endian then
+      for i = 1, n do
+        local u = v % 256
+        v = (v - u) / 256
+        buffer[i] = u
+      end
+    else
+      for i = n, 1, -1  do
+        local u = v % 256
+        v = (v - u) / 256
+        buffer[i] = u
+      end
+    end
+    return string.char(unpack(buffer))
+  end
+
+  function self:write_int(v)
+    self:write(self:encode_integer(v, self._header.sizeof_int))
+  end
+
+  function self:write_integer(v)
+    self:write(self:encode_integer(v, self._header.sizeof_integer))
+  end
+
+  function self:write_size_t(v)
+    self:write(self:encode_integer(v, self._header.sizeof_size_t))
+  end
+
   return self
 end
 
 local r = reader(io.stdin)
-local header = r:read_header()
-print(json.encode(header))
+local chunk = r:read_chunk()
 
-if header.minor_version == 3 then
-  local sizeupvalues = r:read_byte()
-  print(sizeupvalues)
-end
-print(json.encode(r:read_function()))
-assert(r:read_byte() == nil)
+local w = writer(io.stdout)
+w._header = chunk.header
+-- w:write_byte(0x21)
+w:write_size_t(0xdeadbeef)
