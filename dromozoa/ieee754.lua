@@ -1,11 +1,6 @@
 if string.pack then
   local function format(size, endian)
-    if not endian then
-      endian = "="
-    end
-    if not size then
-      return endian .. "n"
-    elseif size == 4 then
+    if size == 4 then
       return endian .. "f"
     elseif size == 8 then
       return endian .. "d"
@@ -23,33 +18,6 @@ if string.pack then
   }
 else
   local unpack = table.unpack or unpack
-
-  local native_endian
-  local native_size
-  do
-    local chunk = string.dump(function () end)
-    if chunk:sub(1, 4) == "\27Lua" then
-      local version = chunk:byte(5)
-      if version == 81 or version == 82 then
-        if chunk:byte(7) == 1 then
-          native_endian = "<"
-        else
-          native_endian = ">"
-        end
-        native_size = chunk:byte(11)
-      end
-    end
-  end
-
-  local function format(size, endian)
-    if not size then
-      size = native_size
-    end
-    if not endian then
-      endian = native_endian
-    end
-    return size, endian
-  end
 
   local function constant(size)
     if size == 4 then
@@ -69,8 +37,7 @@ else
 
   return {
     decode = function (s, endian)
-      local size, endian = format(#s, endian)
-      local bias, fill, shift = constant(size)
+      local bias, fill, shift = constant(#s)
 
       local buffer = { s:byte(1, -1) }
       if endian == "<" then
@@ -108,7 +75,6 @@ else
     end;
 
     encode = function (v, size, endian)
-      local size, endian = format(size, endian)
       local bias, fill, shift = constant(size)
 
       local sign = 0
