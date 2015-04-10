@@ -17,11 +17,18 @@
 -- You should have received a copy of the GNU General Public License
 -- along with dromozoa-assembler.  If not, see <http://www.gnu.org/licenses/>.
 
+local number = require "dromozoa.number"
+
 local DBL_MAX = 1.7976931348623157e+308
 local DBL_DENORM_MIN = 4.9406564584124654e-324
 local DBL_MIN = 2.2250738585072014e-308
 local DBL_EPSILON = 2.2204460492503131e-16
 local nan = math.sqrt(-1)
+
+-- io.write(number.encode_binary(0.125, 8, "<"))
+print(number.decode_binary(number.encode_binary(DBL_MIN, 8, "<"), "<"))
+-- io.write(number.encode_binary(0.375, 4, ">"))
+os.exit()
 
 local unpack = table.unpack or unpack
 
