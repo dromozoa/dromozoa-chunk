@@ -23,6 +23,27 @@ if string.pack then
 else
   local unpack = table.unpack or unpack
 
+  local native_endian
+  local native_size
+  do
+    local chunk = string.dump(function () end)
+    if chunk:sub(1, 4) == "\27Lua" then
+      local version = chunk:byte(5)
+      if version == 81 or version == 82 then
+        if chunk:byte(7) == 1 then
+          native_endian = "<"
+        else
+          native_endian = ">"
+        end
+        native_size = chunk:byte(11)
+        if chunk:byte(12) ~= 0 then
+          -- number is integral
+          return nil
+        end
+      end
+    end
+  end
+
   local function constant(n)
     if n == 4 then
       return 126, 255, 128
@@ -63,6 +84,10 @@ else
   return {
     decode_binary = function (s, endian)
       local bias, fill, shift = constant(#s)
+
+      if not endian then
+        endian = native_endian
+      end
 
       local buffer = { s:byte(1, -1) }
       if endian == "<" then
@@ -105,6 +130,13 @@ else
 
     encode_binary = function (v, n, endian)
       local bias, fill, shift = constant(n)
+
+      if not endian then
+        endian = native_endian
+      end
+      if n == 4 or n == 8 then
+        n = native_size
+      end
 
       local sign = 0
       local exponent = 0
