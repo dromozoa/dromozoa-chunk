@@ -26,10 +26,15 @@ local nan = math.sqrt(-1)
 local unpack = table.unpack or unpack
 
 local encode_binary
+local decode_binary
 
 if string.pack then
   encode_binary = function (v)
     return string.pack("<d", v)
+  end
+
+  decode_binary = function (v)
+    return string.unpack("<d", v)
   end
 else
   encode_binary = function (v)
@@ -65,6 +70,8 @@ else
       fraction = 0.5
     end
 
+    io.stderr:write(string.format("E %d,%d,%.17g\n", sign, exponent, fraction))
+
     local buffer = {}
 
     local a = exponent % 16
@@ -88,16 +95,91 @@ else
 
     return string.char(unpack(buffer))
   end
+
+  decode_binary = function (v)
+    local buffer = { v:byte(1, -1) }
+    for i = 1, 4 do
+      buffer[i], buffer[9 - i] = buffer[9 - i], buffer[i]
+    end
+
+    local sign = 0
+    local exponent = 0
+    local fraction = 0
+
+    local a = buffer[1]
+    local b = a % 128
+
+    if a - b == 128 then
+      sign = 1
+    end
+    exponent = b * 16
+
+    local a = buffer[2]
+    local b = a % 16
+    exponent = exponent + (a - b) / 16
+    fraction = b
+
+    local f = 0
+    for i = 8, 3, -1 do
+      f = f / 256
+      f = f + buffer[i]
+    end
+    f = f / 256
+
+    fraction = (fraction + f) / 16
+
+    if exponent == 2047 then
+      if fraction == 0 then
+        if sign == 0 then
+          io.stderr:write("= INF\n")
+          return math.huge
+        else
+          io.stderr:write("= -INF\n")
+          return -math.huge
+        end
+      else
+        io.stderr:write("= NaN\n")
+        return 0 / 0
+      end
+    elseif exponent == 0 and fraction == 0 then
+      if sign == 0 then
+        io.stderr:write("= 0\n")
+        return 0
+      else
+        io.stderr:write("= -0\n")
+        return -1 / math.huge
+      end
+    else
+      local m, e
+      if exponent == 0 then
+        m = fraction
+        e = exponent - 1022
+      else
+        m = (fraction + 1) / 2
+        e = exponent - 1022
+      end
+      io.stderr:write(string.format("= %.17g\n", math.ldexp(m, e)))
+      return math.ldexp(m, e)
+    end
+
+    io.stderr:write(string.format("D %d,%d,%.17g\n", sign, exponent, fraction))
+  end
 end
 
 local sign_zero = -DBL_MIN / 256^7
 
-io.write(encode_binary(sign_zero))
-io.write(encode_binary(0))
-io.write(encode_binary(DBL_MAX))
-io.write(encode_binary(DBL_MIN))
-io.write(encode_binary(2^-1030))
-io.write(encode_binary(math.pi))
-io.write(encode_binary(math.huge))
-io.write(encode_binary(-math.huge))
-io.write(encode_binary(nan))
+local function test(v)
+  io.stderr:write(string.format("? %.17g\n", v))
+  print(decode_binary(encode_binary(v)))
+  io.stderr:write("\n")
+end
+
+test(sign_zero)
+test(0)
+test(DBL_MAX)
+test(DBL_MIN)
+test(2^-1030)
+test(math.pi)
+test(math.huge)
+test(-math.huge)
+test(nan)
