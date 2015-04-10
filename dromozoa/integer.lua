@@ -1,28 +1,15 @@
 if string.pack then
-  local function format(size, signed, endian)
-    if not endian then
-      endian = "="
-    end
-    if not signed then
-      signed = "signed"
-    end
-    if not size then
-      size = ""
-    end
-    if signed:sub(1, 1) == "s" then
-      return endian .. "i" .. size
-    else
-      return endian .. "I" .. size
-    end
+  local function format(size, specifier, endian)
+    return endian .. specifier .. size
   end
 
   return {
-    decode = function (s, signed, endian)
-      return (format(#s, signed, endian):unpack(s))
+    decode = function (s, specifier, endian)
+      return (format(#s, specifier, endian):unpack(s))
     end;
 
-    encode = function (v, size, signed, endian)
-      return format(size, signed, endian):pack(v)
+    encode = function (v, size, specifier, endian)
+      return format(size, specifier, endian):pack(v)
     end;
   }
 else
@@ -37,12 +24,12 @@ else
   end
 
   return {
-    decode = function (s, signed, endian)
+    decode = function (s, specifier, endian)
       local buffer = { s:byte(1, -1) }
       if endian == "<" then
         swap(buffer)
       end
-      if signed:sub(1, 1) == "s" and buffer[1] > 127 then
+      if specifier == "i" and buffer[1] > 127 then
         local v = 0
         for i = 1, #buffer do
           v = v * 256 - 255 + buffer[i]
@@ -57,9 +44,9 @@ else
       end
     end;
 
-    encode = function (v, size, signed, endian)
+    encode = function (v, size, specifier, endian)
       local buffer = {}
-      if signed:sub(1, 1) == "s" and v < 0 then
+      if specifier == "i" and v < 0 then
         v = -v - 1
         for i = 1, size do
           buffer[i] = 255 - v % 256

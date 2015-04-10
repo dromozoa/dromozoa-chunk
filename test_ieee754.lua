@@ -23,31 +23,25 @@ local DBL_MAX = 1.7976931348623157e+308
 local DBL_DENORM_MIN = 4.9406564584124654e-324
 local DBL_MIN = 2.2250738585072014e-308
 local DBL_EPSILON = 2.2204460492503131e-16
-local nan = math.sqrt(-1)
-
-local function is_nan(v)
-  return not (-math.huge <= v and v <= math.huge)
-end
 
 local function test(u)
   local s = ieee754.encode(u, 8, "<")
-  -- io.write(s)
+  assert(#s == 8)
   local v = ieee754.decode(s, "<")
-  print("<", u)
-  print(">", v)
-  if is_nan(u) then
-    assert(is_nan(v))
-  else
+  if -math.huge <= u and u <= math.huge then
     assert(u == v)
+  else
+    assert(not (-math.huge <= v and v <= math.huge))
   end
 end
 
-test(-1 / math.huge)
-test(0)
 test(DBL_MAX)
+test(DBL_DENORM_MIN)
 test(DBL_MIN)
+test(DBL_EPSILON)
 test(math.pi)
-test(2^-1030)
-test(math.huge)
-test(-math.huge)
-test(nan)
+test(0)
+test(-1 / math.huge) -- -0
+test(math.huge)      -- inf
+test(-math.huge)     -- -inf
+test(0 / 0)          -- nan
