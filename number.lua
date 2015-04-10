@@ -33,67 +33,71 @@ if string.pack then
   end
 else
   encode_binary = function (v)
-    local buffer
+    local sign = 0
+    local exponent = 0
+    local fraction = 0
+
     if -math.huge < v and v < math.huge then
       if v == 0 then
-        buffer = { 0, 0, 0, 0, 0, 0, 0, 0 }
-      elseif v < DBL_MIN then
-        local s = v < 0
-        local m, e = math.frexp(v)
-        local f = math.ldexp(m, e + 1022)
-        print(m, e, f)
-
-        for i = 1, 13 do
-          local a = f * 16
-          local b = math.floor(a)
-          print(string.format("%02x", b))
-          f = a - b
+        if string.format("%.17g", v):sub(1, 1) == "-" then
+          sign = 1
         end
-
       else
-        local s = v < 0
+        if v < 0 then
+          sign = 1
+        end
         local m, e = math.frexp(v)
-        print("e", e)
-        local f = m * 2 - 1
-        e = e - 1
-        e = e + 1023
-
-        local ab = (s and 0x8000 or 0x0000) + e * 16
-        print(s, f, e, string.format("%04x", ab))
-
-        for i = 1, 13 do
-          local a = f * 16
-          local b = math.floor(a)
-          print(string.format("%02x", b))
-          f = a - b
+        if e < -1021 then
+          fraction = math.ldexp(m, e + 1022)
+        else
+          exponent = e + 1022
+          fraction = m * 2 - 1
         end
       end
-
-      os.exit()
-    elseif v == math.huge then -- INF
-      buffer = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xF0, 0x7F }
-    elseif v == -math.huge then -- -INF
-      buffer = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xF0, 0xFF }
-    else -- Quiet NaN
-      buffer = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xF8, 0xFF }
+    elseif v == math.huge then
+      exponent = 2047
+    elseif v == -math.huge then
+      sign = 1
+      exponent = 2047
+    else
+      sign = 1
+      exponent = 2047
+      fraction = 0.5
     end
+
+    local buffer = {}
+
+    local a = exponent % 16
+    buffer[1] = sign * 128 + (exponent - a) / 16
+
+    local f = fraction * 16
+    local b = math.floor(f)
+    f = f - b
+    buffer[2] = a * 16 + b
+
+    for i = 3, 8 do
+      f = f * 256
+      b = math.floor(f)
+      f = f - b
+      buffer[i] = b
+    end
+
+    for i = 1, 4 do
+      buffer[i], buffer[9 - i] = buffer[9 - i], buffer[i]
+    end
+
     return string.char(unpack(buffer))
   end
 end
 
--- io.write(encode_binary(0))
--- io.write(encode_binary(DBL_MIN))
+local sign_zero = -DBL_MIN / 256^7
+
+io.write(encode_binary(sign_zero))
+io.write(encode_binary(0))
+io.write(encode_binary(DBL_MAX))
+io.write(encode_binary(DBL_MIN))
 io.write(encode_binary(2^-1030))
--- io.write(encode_binary(math.pi))
--- io.write(encode_binary(math.huge))
--- io.write(encode_binary(-math.huge))
--- io.write(encode_binary(nan))
-
-os.exit()
-
-local x = DBL_MAX * 2
-local nan = math.sqrt(-1)
-local inf = math.huge
-
-local x = inf
-print(x <= inf)
+io.write(encode_binary(math.pi))
+io.write(encode_binary(math.huge))
+io.write(encode_binary(-math.huge))
+io.write(encode_binary(nan))
