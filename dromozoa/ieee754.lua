@@ -67,12 +67,6 @@ else
     end
   end
 
-  local function encode_fraction(v, shift)
-    local a = v * shift
-    local b = math.floor(a)
-    return a - b, b
-  end
-
   return {
     decode = function (s, endian)
       local size, endian = format(#s, endian)
@@ -124,11 +118,11 @@ else
       if -math.huge < v and v < math.huge then
         if v == 0 then
           if string.format("%g", v):sub(1, 1) == "-" then
-            sign = 0x80
+            sign = 0x8000
           end
         else
           if v < 0 then
-            sign = 0x80
+            sign = 0x8000
           end
           local m, e = math.frexp(v)
           if e <= -bias then
@@ -141,7 +135,7 @@ else
       else
         exponent = fill
         if v ~= math.huge then
-          sign = 0x80
+          sign = 0x8000
           if v ~= -math.huge then
             fraction = 0.5
           end
@@ -149,15 +143,13 @@ else
       end
 
       local buffer = {}
-      fraction, buffer[2] = encode_fraction(fraction, shift)
+      local b, fraction = math.modf(fraction * shift)
       for i = 3, size do
-        fraction, buffer[i] = encode_fraction(fraction, 256)
+        buffer[i], fraction = math.modf(fraction * 256)
       end
-
-      local a = exponent * shift
-      local b = a % 256
-      buffer[1] = sign + (a - b) / 256
-      buffer[2] = buffer[2] + b
+      local ab = sign + exponent * shift + b
+      buffer[1] = math.floor(ab / 256)
+      buffer[2] = ab % 256
 
       if endian == "<" then
         swap(buffer)
