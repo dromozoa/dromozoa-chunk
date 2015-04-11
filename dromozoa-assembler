@@ -1,0 +1,415 @@
+#! /usr/bin/env lua
+
+-- Copyright (C) 2015 Tomoyuki Fujimori <moyu@dromozoa.com>
+--
+-- This file is part of dromozoa-assembler.
+--
+-- dromozoa-assembler is free software: you can redistribute it and/or modify
+-- it under the terms of the GNU General Public License as published by
+-- the Free Software Foundation, either version 3 of the License, or
+-- (at your option) any later version.
+--
+-- dromozoa-assembler is distributed in the hope that it will be useful,
+-- but WITHOUT ANY WARRANTY; without even the implied warranty of
+-- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+-- GNU General Public License for more details.
+--
+-- You should have received a copy of the GNU General Public License
+-- along with dromozoa-assembler.  If not, see <http://www.gnu.org/licenses/>.
+
+local unpack = table.unpack or unpack
+
+local SIGNATURE = "\27Lua"
+local DATA = "\25\147\r\n\26\n"
+
+local function reader(handle)
+  local self = {
+    _h = handle;
+    _i = 1;
+  }
+
+  function self:raise(message)
+    if message then
+      error(message .. " at position " .. self._i)
+    else
+      error("read error at position " .. self._i)
+    end
+  end
+
+  function self:read(n)
+    local v = self._h:read(n)
+    if v then
+      self._i = self._i + n
+      return v
+    end
+  end
+
+  function self:read_byte()
+    local v = self:read(1)
+    if v then
+      return v:byte()
+    end
+  end
+
+  function self:read_bytes(n)
+    local v = self:read(n)
+    if v then
+      return { v:byte(1, -1) }
+    end
+  end
+
+  function self:decode_integer(s)
+    local v = 0
+    if self._header.is_little_endian then
+      for i = #s, 1, -1 do
+        v = v * 256 + s:byte(i)
+      end
+    else
+      for i = 1, #s do
+        v = v * 256 + s:byte(i)
+      end
+    end
+    return v
+  end
+
+  function self:read_int()
+    return self:decode_integer(self:read(self._header.sizeof_int))
+  end
+
+  function self:read_integer()
+    return self:decode_integer(self:read(self._header.sizeof_integer))
+  end
+
+  function self:read_size_t()
+    return self:decode_integer(self:read(self._header.sizeof_size_t))
+  end
+
+  function self:read_instruction()
+    return self:read_bytes(self._header.sizeof_instruction)
+  end
+
+  function self:read_number()
+    return self:read_bytes(self._header.sizeof_number)
+  end
+
+  function self:read_string_5_1()
+    local n = self:read_size_t()
+    if n ~= 0 then
+      local v = self:read(n - 1)
+      if self:read_byte() ~= 0 then
+        self:raise()
+      end
+      return v
+    end
+  end
+
+  self.read_string_5_2 = self.read_string_5_1
+
+  function self:read_string_5_3()
+    local n = self:read_byte()
+    if n == 0 then
+      return nil
+    elseif n == 255 then
+      n = self:read_size_t()
+    end
+    return self:read(n - 1)
+  end
+
+  function self:read_string()
+    return self["read_string" .. self._version_suffix](self)
+  end
+
+  function self:read_header_5_1(header)
+    header.is_little_endian = self:read_byte() == 1
+    header.sizeof_int = self:read_byte()
+    header.sizeof_size_t = self:read_byte()
+    header.sizeof_instruction = self:read_byte()
+    header.sizeof_number = self:read_byte()
+    header.is_number_integral = self:read_byte() ~= 0
+  end
+
+  function self:read_header_5_2(header)
+    header.is_little_endian = self:read_byte() == 1
+    header.sizeof_int = self:read_byte()
+    header.sizeof_size_t = self:read_byte()
+    header.sizeof_instruction = self:read_byte()
+    header.sizeof_number = self:read_byte()
+    header.is_number_integral = self:read_byte() ~= 0
+    if self:read(#DATA) ~= DATA then
+      self:raise "invalid data"
+    end
+  end
+
+  function self:read_header_5_3(header)
+    if self:read(#DATA) ~= DATA then
+      self:raise "invalid data"
+    end
+    header.sizeof_int = self:read_byte()
+    header.sizeof_size_t = self:read_byte()
+    header.sizeof_instruction = self:read_byte()
+    header.sizeof_integer = self:read_byte()
+    header.sizeof_number = self:read_byte()
+
+    local magic_integer = self:read(header.sizeof_integer)
+    header.is_little_endian = magic_integer:byte(1) ~= 0
+    if self:decode_integer(magic_integer) ~= 0x5678 then
+      self:raise "invalid magic integer"
+    end
+
+    local magic_number = self:read(header.sizeof_number)
+  end
+
+  function self:read_header()
+    local header = {}
+    self._header = header
+
+    if self:read(#SIGNATURE) ~= SIGNATURE then
+      self:raise "invalid signature"
+    end
+
+    local version = self:read_byte()
+    if version < 81 or 84 < version then
+      self:raise "unsupported version"
+    end
+    header.minor_version = version % 16
+    header.major_version = (version - header.minor_version) / 16
+    self._version_suffix = string.format("_%d_%d", header.major_version, header.minor_version)
+
+    local format = self:read_byte()
+    if format ~= 0 then
+      self:raise "unsupported format"
+    end
+
+    self["read_header" .. self._version_suffix](self, header)
+    return header
+  end
+
+  function self:read_code(func)
+    local code = {}
+    func.code = code
+    for i = 1, self:read_int() do
+      code[i] = self:read_instruction()
+    end
+  end
+
+  function self:read_constants(func)
+    local constants = {}
+    func.constants = constants
+    for i = 1, self:read_int() do
+      local t = self:read_byte()
+      local v
+      if t == 0 then -- LUA_TNIL
+        v = nil
+      elseif t == 1 then -- LUA_TBOOLEAN
+        v = self:read_byte() ~= 0
+      elseif t == 3 then -- LUA_TNUMBER(LUA_TNUMFLT)
+        v = self:read_number()
+      elseif t == 19 then -- LUA_TNUMINT
+        v = self:read_integer()
+      elseif t == 4 or t == 20 then -- LUA_TSTRING (LUA_TSHRSTR), LUA_TLNGSTR
+        v = self:read_string()
+      end
+      constants[i] = v
+    end
+  end
+
+  function self:read_upvalues(func)
+    local upvalues = {}
+    func.upvalues = upvalues
+    for i = 1, self:read_int() do
+      local upvalue = {}
+      upvalues[i] = upvalue
+      upvalue.in_stack = self:read_byte()
+      upvalue.idx = self:read_byte()
+    end
+  end
+
+  function self:read_protos(func)
+    local protos = {}
+    func.protos = protos
+    for i = 1, self:read_int() do
+      protos[i] = self:read_function()
+    end
+  end
+
+  function self:read_debug_5_1(func)
+    local line_info = {}
+    func.line_info = line_info
+    for i = 1, self:read_int() do
+      line_info[i] = self:read_int()
+    end
+    local loc_vars = {}
+    func.loc_vars = {}
+    for i = 1, self:read_int() do
+      local loc_var = {}
+      loc_vars[i] = loc_var
+      loc_var.varname = self:read_string()
+      loc_var.startpc = self:read_int()
+      loc_var.endpc = self:read_int()
+    end
+    local upvalues = {}
+    func.upvalues = upvalues
+    for i = 1, self:read_int() do
+      local name = self:read_string()
+      upvalues[i] = { name }
+    end
+  end
+
+  function self:read_debug_5_2(func)
+    func.source = self:read_string()
+    local line_info = {}
+    func.line_info = line_info
+    for i = 1, self:read_int() do
+      line_info[i] = self:read_int()
+    end
+    local loc_vars = {}
+    func.loc_vars = {}
+    for i = 1, self:read_int() do
+      local loc_var = {}
+      loc_vars[i] = loc_var
+      loc_var.varname = self:read_string()
+      loc_var.startpc = self:read_int()
+      loc_var.endpc = self:read_int()
+    end
+    for i = 1, self:read_int() do
+      func.upvalues[i].name = self:read_string()
+    end
+  end
+
+  function self:read_debug_5_3(func)
+    local line_info = {}
+    func.line_info = line_info
+    for i = 1, self:read_int() do
+      line_info[i] = self:read_int()
+    end
+    local loc_vars = {}
+    func.loc_vars = {}
+    for i = 1, self:read_int() do
+      local loc_var = {}
+      loc_vars[i] = loc_var
+      loc_var.varname = self:read_string()
+      loc_var.startpc = self:read_int()
+      loc_var.endpc = self:read_int()
+    end
+    for i = 1, self:read_int() do
+      func.upvalues[i].name = self:read_string()
+    end
+  end
+
+  function self:read_debug(func)
+    self["read_debug" .. self._version_suffix](self, func)
+  end
+
+  function self:read_function_5_1(func)
+    func.source = self:read_string()
+    func.line_defined = self:read_int()
+    func.last_line_defined = self:read_int()
+    func.nups = self:read_byte()
+    func.num_params = self:read_byte()
+    func.is_vararg = self:read_byte() ~= 0
+    func.max_stack_size = self:read_byte()
+    self:read_code(func)
+    self:read_constants(func)
+    self:read_protos(func)
+    self:read_debug(func)
+  end
+
+  function self:read_function_5_2(func)
+    func.line_defined = self:read_int()
+    func.last_line_defined = self:read_int()
+    func.num_params = self:read_byte()
+    func.is_vararg = self:read_byte() ~= 0
+    func.max_stack_size = self:read_byte()
+    self:read_code(func)
+    self:read_constants(func)
+    self:read_protos(func)
+    self:read_upvalues(func)
+    self:read_debug(func)
+  end
+
+  function self:read_function_5_3(func)
+    func.source = self:read_string()
+    func.line_defined = self:read_int()
+    func.last_line_defined = self:read_int()
+    func.num_params = self:read_byte()
+    func.is_vararg = self:read_byte() ~= 0
+    func.max_stack_size = self:read_byte()
+    self:read_code(func)
+    self:read_constants(func)
+    self:read_upvalues(func)
+    self:read_protos(func)
+    self:read_debug(func)
+  end
+
+  function self:read_function()
+    local func = {}
+    self["read_function" .. self._version_suffix](self, func)
+    return func
+  end
+
+  function self:read_chunk()
+    local chunk = {}
+    chunk.header = self:read_header()
+    if self._header.minor_version == 3 then
+      chunk.size_upvalues = self:read_byte()
+    end
+    chunk.func = self:read_function()
+    return chunk
+  end
+
+  return self
+end
+
+local function writer(handle)
+  local self = {
+    _h = handle;
+  }
+
+  function self:write(s)
+    self._h:write(s)
+  end
+
+  function self:write_byte(v)
+    self:write(string.char(v))
+  end
+
+  function self:encode_integer(v, n)
+    local buffer = {}
+    if self._header.is_little_endian then
+      for i = 1, n do
+        local u = v % 256
+        v = (v - u) / 256
+        buffer[i] = u
+      end
+    else
+      for i = n, 1, -1  do
+        local u = v % 256
+        v = (v - u) / 256
+        buffer[i] = u
+      end
+    end
+    return string.char(unpack(buffer))
+  end
+
+  function self:write_int(v)
+    self:write(self:encode_integer(v, self._header.sizeof_int))
+  end
+
+  function self:write_integer(v)
+    self:write(self:encode_integer(v, self._header.sizeof_integer))
+  end
+
+  function self:write_size_t(v)
+    self:write(self:encode_integer(v, self._header.sizeof_size_t))
+  end
+
+  return self
+end
+
+local r = reader(io.stdin)
+local chunk = r:read_chunk()
+
+local w = writer(io.stdout)
+w._header = chunk.header
+-- w:write_byte(0x21)
+w:write_size_t(0xdeadbeef)
