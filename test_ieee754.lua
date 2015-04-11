@@ -17,7 +17,7 @@
 -- You should have received a copy of the GNU General Public License
 -- along with dromozoa-assembler.  If not, see <http://www.gnu.org/licenses/>.
 
-local ieee754 = require "dromozoa.ieee754"
+local ieee754 = require "dromozoa.chunk.ieee754"
 
 local DBL_MAX = 1.7976931348623157e+308
 local DBL_DENORM_MIN = 4.9406564584124654e-324
