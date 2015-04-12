@@ -1,19 +1,38 @@
+-- Copyright (C) 2015 Tomoyuki Fujimori <moyu@dromozoa.com>
+--
+-- This file is part of dromozoa-chunk.
+--
+-- dromozoa-chunk is free software: you can redistribute it and/or modify
+-- it under the terms of the GNU General Public License as published by
+-- the Free Software Foundation, either version 3 of the License, or
+-- (at your option) any later version.
+--
+-- dromozoa-chunk is distributed in the hope that it will be useful,
+-- but WITHOUT ANY WARRANTY; without even the implied warranty of
+-- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+-- GNU General Public License for more details.
+--
+-- You should have received a copy of the GNU General Public License
+-- along with dromozoa-chunk.  If not, see <http://www.gnu.org/licenses/>.
+
+local swap = require "dromozoa.chunk.swap"
+
 if string.pack then
-  local function format(endian, size)
+  local function specifier(size)
     if size == 4 then
-      return endian .. "f"
+      return "f"
     elseif size == 8 then
-      return endian .. "d"
+      return "d"
     end
   end
 
   return {
     decode = function (endian, size, s, position)
-      return (format(endian, size):unpack(s, position))
+      return ((endian .. specifier(size)):unpack(s, position))
     end;
 
     encode = function (endian, size, v)
-      return format(endian, size):pack(v)
+      return (endian .. specifier(size)):pack(v)
     end;
   }
 else
@@ -24,14 +43,6 @@ else
       return 126, 255, 128
     elseif size == 8 then
       return 1022, 2047, 16
-    end
-  end
-
-  local function swap(buffer)
-    local n = #buffer
-    for i = 1, n / 2 do
-      local j = n - i + 1
-      buffer[i], buffer[j] = buffer[j], buffer[i]
     end
   end
 
@@ -117,8 +128,9 @@ else
         buffer[i], fraction = math.modf(fraction * 256)
       end
       local ab = sign + exponent * shift + b
-      buffer[1] = math.floor(ab / 256)
-      buffer[2] = ab % 256
+      local x = ab % 256
+      buffer[1] = (ab - x) / 256
+      buffer[2] = x
 
       if endian == "<" then
         swap(buffer)
