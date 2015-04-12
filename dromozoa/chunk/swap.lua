@@ -15,31 +15,10 @@
 -- You should have received a copy of the GNU General Public License
 -- along with dromozoa-chunk.  If not, see <http://www.gnu.org/licenses/>.
 
-local ieee754 = require "dromozoa.chunk.ieee754"
-
-local DBL_MAX = 1.7976931348623157e+308
-local DBL_DENORM_MIN = 4.9406564584124654e-324
-local DBL_MIN = 2.2250738585072014e-308
-local DBL_EPSILON = 2.2204460492503131e-16
-
-local function test(u)
-  local s = ieee754.encode("<", 8, u)
-  assert(#s == 8)
-  local v = ieee754.decode("<", 8, s)
-  if -math.huge <= u and u <= math.huge then
-    assert(u == v)
-  else
-    assert(not (-math.huge <= v and v <= math.huge))
+return function (buffer)
+  local n = #buffer
+  for i = 1, n / 2 do
+    local j = n - i + 1
+    buffer[i], buffer[j] = buffer[j], buffer[i]
   end
 end
-
-test(DBL_MAX)
-test(DBL_DENORM_MIN)
-test(DBL_MIN)
-test(DBL_EPSILON)
-test(math.pi)
-test(0)
-test(-1 / math.huge) -- -0
-test(math.huge)      -- inf
-test(-math.huge)     -- -inf
-test(0 / 0)          -- nan
