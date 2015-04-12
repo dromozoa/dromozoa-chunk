@@ -58,14 +58,19 @@ else
         swap(buffer)
       end
 
-      local a, b = buffer[1], buffer[2]
-      local sign = a < 128 and 1 or -1
-      local exponent = a % 128 * shift + math.floor(b / shift)
+      local ab = buffer[1] * 256 + buffer[2]
+      local sign = 1
+      if ab >= 0x8000 then
+        ab = ab - 0x8000
+        sign = -1
+      end
+      local x = ab % shift
+      local exponent = (ab - x) / shift
       local fraction = 0
-      for i = #buffer, 3, -1 do
+      for i = size, 3, -1 do
         fraction = (fraction + buffer[i]) / 256
       end
-      fraction = (fraction + b % shift) / shift
+      fraction = (fraction + x) / shift
 
       if exponent == fill then
         if fraction == 0 then
