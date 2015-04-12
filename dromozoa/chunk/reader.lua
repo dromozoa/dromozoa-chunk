@@ -18,9 +18,6 @@
 local ieee754 = require "dromozoa.chunk.ieee754"
 local integer = require "dromozoa.chunk.integer"
 
-local SIGNATURE = "\27Lua"
-local DATA = "\25\147\r\n\26\n"
-
 return function (handle)
   local self = {
     _h = handle;
@@ -50,62 +47,66 @@ return function (handle)
     end
   end
 
-  function self:read_header_5_1(header)
-    if self:read_byte() ~= 0 then
-      header.endian = "<"
-    else
-      header.endian = ">"
-    end
-    header.sizeof_int = self:read_byte()
-    header.sizeof_size_t = self:read_byte()
-    header.sizeof_instruction = self:read_byte()
-    header.sizeof_number = self:read_byte()
-    if self:read_byte() ~= 0 then
-      header.number = "integer"
-    else
-      header.number = "ieee754"
-    end
-  end
-
-  function self:read_header_5_2(header)
-    self:read_header_5_1(header)
+  function self:read_header_data(H)
+    local DATA = "\25\147\r\n\26\n"
     if self:read(#DATA) ~= DATA then
       self:raise "invalid data"
     end
   end
 
-  function self:read_header_5_3(header)
-    if self:read(#DATA) ~= DATA then
-      self:raise "invalid data"
+  function self:read_header_5_1(H)
+    if self:read_byte() ~= 0 then
+      H.endian = "<"
+    else
+      H.endian = ">"
     end
-    header.sizeof_int = self:read_byte()
-    header.sizeof_size_t = self:read_byte()
-    header.sizeof_instruction = self:read_byte()
-    header.sizeof_integer = self:read_byte()
-    header.sizeof_number = self:read_byte()
+    H.sizeof_int = self:read_byte()
+    H.sizeof_size_t = self:read_byte()
+    H.sizeof_instruction = self:read_byte()
+    H.sizeof_number = self:read_byte()
+    if self:read_byte() ~= 0 then
+      H.number = "integer"
+    else
+      H.number = "ieee754"
+    end
+  end
 
-    local magic_integer = self:read(header.sizeof_integer)
+  function self:read_header_5_2(H)
+    self:read_header_5_1(H)
+    self:read_header_data(H)
+  end
+
+  function self:read_header_5_3(H)
+    self:read_header_data(H)
+    H.sizeof_int = self:read_byte()
+    H.sizeof_size_t = self:read_byte()
+    H.sizeof_instruction = self:read_byte()
+    H.sizeof_integer = self:read_byte()
+    H.sizeof_number = self:read_byte()
+
+    local magic_integer = self:read(H.sizeof_integer)
     if magic_integer:byte(1) ~= 0 then
-      header.endian = "<"
+      H.endian = "<"
     else
-      header.endian = ">"
+      H.endian = ">"
     end
-    if integer.decode(header.endian, "i", header.sizeof_integer, magic_integer) ~= 0x5678 then
+    if integer.decode(H.endian, "i", H.sizeof_integer, magic_integer) ~= 0x5678 then
       self:raise "invalid magic integer"
     end
 
-    local magic_number = self:read(header.sizeof_number)
-    if ieee754.decode(header.endian, header.sizeof_number, magic_number) == 370.5 then
-      header.number = "ieee754"
-    elseif integer.decode(header.endian, "i", header.sizeof_number, magic_number) == 370 then
-      header.number = "integer"
+    local magic_number = self:read(H.sizeof_number)
+    if ieee754.decode(H.endian, H.sizeof_number, magic_number) == 370.5 then
+      H.number = "ieee754"
+    elseif integer.decode(H.endian, "i", H.sizeof_number, magic_number) == 370 then
+      H.number = "integer"
     end
   end
 
   function self:read_header()
-    local header = {}
-    self._header = header
+    local H = {}
+    self._header = H
 
+    local SIGNATURE = "\27Lua"
     if self:read(#SIGNATURE) ~= SIGNATURE then
       self:raise "invalid signature"
     end
@@ -114,20 +115,16 @@ return function (handle)
     if version < 81 or 84 < version then
       self:raise "unsupported version"
     end
-    local minor_version = version % 16
-    local major_version = (version - minor_version) / 16
-    local version_suffix = string.format("_%d_%d", major_version, minor_version)
-    header.minor_version = minor_version
-    header.major_version = major_version
-    self._version_suffix = version_suffix
+    H.minor_version = version % 16
+    H.major_version = (version - H.minor_version) / 16
+    self._version_suffix = string.format("_%d_%d", H.major_version, H.minor_version)
 
-    local format = self:read_byte()
-    if format ~= 0 then
+    if self:read_byte() ~= 0 then
       self:raise "unsupported format"
     end
 
-    self["read_header" .. version_suffix](self, header)
-    return header
+    self["read_header" .. self._version_suffix](self, H)
+    return H
   end
 
   return self

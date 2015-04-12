@@ -48,7 +48,7 @@ else
 
   return {
     decode = function (endian, size, s, position)
-      local bias, fill, shift = constant(size)
+      local BIAS, FILL, SHIFT = constant(size)
 
       if not position then
         position = 1
@@ -64,15 +64,15 @@ else
         ab = ab - 0x8000
         sign = -1
       end
-      local x = ab % shift
-      local exponent = (ab - x) / shift
+      local x = ab % SHIFT
+      local exponent = (ab - x) / SHIFT
       local fraction = 0
       for i = size, 3, -1 do
         fraction = (fraction + buffer[i]) / 256
       end
-      fraction = (fraction + x) / shift
+      fraction = (fraction + x) / SHIFT
 
-      if exponent == fill then
+      if exponent == FILL then
         if fraction == 0 then
           return sign * math.huge
         else
@@ -86,15 +86,15 @@ else
             return -1 / math.huge
           end
         else
-          return sign * math.ldexp(fraction, exponent - bias)
+          return sign * math.ldexp(fraction, exponent - BIAS)
         end
       else
-        return sign * math.ldexp((fraction + 1) / 2, exponent - bias)
+        return sign * math.ldexp((fraction + 1) / 2, exponent - BIAS)
       end
     end;
 
     encode = function (endian, size, v)
-      local bias, fill, shift = constant(size)
+      local BIAS, FILL, SHIFT = constant(size)
 
       local sign = 0
       local exponent = 0
@@ -110,15 +110,15 @@ else
             sign = 0x8000
           end
           local m, e = math.frexp(v)
-          if e <= -bias then
-            fraction = math.ldexp(m, e + bias)
+          if e <= -BIAS then
+            fraction = math.ldexp(m, e + BIAS)
           else
-            exponent = e + bias
+            exponent = e + BIAS
             fraction = m * 2 - 1
           end
         end
       else
-        exponent = fill
+        exponent = FILL
         if v ~= math.huge then
           sign = 0x8000
           if v ~= -math.huge then
@@ -128,11 +128,11 @@ else
       end
 
       local buffer = {}
-      local b, fraction = math.modf(fraction * shift)
+      local b, fraction = math.modf(fraction * SHIFT)
       for i = 3, size do
         buffer[i], fraction = math.modf(fraction * 256)
       end
-      local ab = sign + exponent * shift + b
+      local ab = sign + exponent * SHIFT + b
       local x = ab % 256
       buffer[1] = (ab - x) / 256
       buffer[2] = x
