@@ -8,8 +8,8 @@ if string.pack then
   end
 
   return {
-    decode = function (endian, s)
-      return (format(endian, #s):unpack(s))
+    decode = function (endian, size, s, position)
+      return (format(endian, size):unpack(s, position))
     end;
 
     encode = function (endian, size, v)
@@ -36,10 +36,13 @@ else
   end
 
   return {
-    decode = function (endian, s)
-      local bias, fill, shift = constant(#s)
+    decode = function (endian, size, s, position)
+      local bias, fill, shift = constant(size)
 
-      local buffer = { s:byte(1, -1) }
+      if not position then
+        position = 1
+      end
+      local buffer = { s:byte(position, position + size - 1) }
       if endian == "<" then
         swap(buffer)
       end

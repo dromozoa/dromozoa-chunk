@@ -28,7 +28,6 @@ else
       if not position then
         position = 1
       end
-
       local buffer = { s:byte(position, position + size - 1) }
       if endian == "<" then
         swap(buffer)
