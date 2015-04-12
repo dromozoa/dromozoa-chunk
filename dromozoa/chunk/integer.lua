@@ -1,15 +1,11 @@
 if string.pack then
-  local function format(endian, specifier, size)
-    return endian .. specifier .. size
-  end
-
   return {
     decode = function (endian, specifier, size, s, position)
-      return (format(endian, specifier, size):unpack(s, position))
+      return ((endian .. specifier .. size):unpack(s, position))
     end;
 
     encode = function (endian, specifier, size, v)
-      return format(endian, specifier, size):pack(v)
+      return (endian .. specifier .. size):pack(v)
     end;
   }
 else
@@ -29,19 +25,18 @@ else
         position = 1
       end
       local buffer = { s:byte(position, position + size - 1) }
-      if endian == "<" then
+      if endian == ">" then
         swap(buffer)
       end
-
-      if specifier == "i" and buffer[1] > 127 then
+      if specifier == "i" and buffer[size] > 127 then
         local v = 0
-        for i = 1, #buffer do
+        for i = size, 1, -1 do
           v = v * 256 + buffer[i] - 255
         end
         return v - 1
       else
         local v = 0
-        for i = 1, #buffer do
+        for i = size, 1, -1 do
           v = v * 256 + buffer[i]
         end
         return v
@@ -51,15 +46,17 @@ else
     encode = function (endian, specifier, size, v)
       local buffer = {}
       if specifier == "i" and v < 0 then
-        v = -v - 1
+        v = -(v + 1)
         for i = 1, size do
-          buffer[i] = 255 - v % 256
-          v = math.floor(v / 256)
+          local x = v % 256
+          buffer[i] = 255 - x
+          v = (v - x) / 256
         end
       else
         for i = 1, size do
-          buffer[i] = v % 256
-          v = math.floor(v / 256)
+          local x = v % 256
+          buffer[i] = x
+          v = (v - x) / 256
         end
       end
       if endian == ">" then

@@ -23,3 +23,5 @@ end
 io.write(test("I", 8,  2^53))
 io.write(test("i", 8,  2^53))
 io.write(test("i", 8, -2^53))
+
+assert(integer.decode("<", "I", 4, "\0\1\2\3\4\5\6\7", 3) == 0x05040302)
