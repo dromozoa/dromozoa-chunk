@@ -25,9 +25,9 @@ local DBL_MIN = 2.2250738585072014e-308
 local DBL_EPSILON = 2.2204460492503131e-16
 
 local function test(u)
-  local s = ieee754.encode(u, 8, "<")
+  local s = ieee754.encode("<", 8, u)
   assert(#s == 8)
-  local v = ieee754.decode(s, "<")
+  local v = ieee754.decode("<", s)
   if -math.huge <= u and u <= math.huge then
     assert(u == v)
   else

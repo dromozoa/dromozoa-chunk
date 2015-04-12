@@ -1,5 +1,5 @@
 if string.pack then
-  local function format(size, endian)
+  local function format(endian, size)
     if size == 4 then
       return endian .. "f"
     elseif size == 8 then
@@ -8,12 +8,12 @@ if string.pack then
   end
 
   return {
-    decode = function (s, endian)
-      return (format(#s, endian):unpack(s))
+    decode = function (endian, s)
+      return (format(endian, #s):unpack(s))
     end;
 
-    encode = function (v, size, endian)
-      return format(size, endian):pack(v)
+    encode = function (endian, size, v)
+      return format(endian, size):pack(v)
     end;
   }
 else
@@ -36,7 +36,7 @@ else
   end
 
   return {
-    decode = function (s, endian)
+    decode = function (endian, s)
       local bias, fill, shift = constant(#s)
 
       local buffer = { s:byte(1, -1) }
@@ -74,7 +74,7 @@ else
       end
     end;
 
-    encode = function (v, size, endian)
+    encode = function (endian, size, v)
       local bias, fill, shift = constant(size)
 
       local sign = 0
