@@ -47,6 +47,34 @@ return function (handle)
     end
   end
 
+  function self:read_int()
+    local H = self._header
+    local size = H.sizeof_int
+    return integer.decode(H.endian, "i", size, self:read(size))
+  end
+
+  function self:read_size_t()
+    local H = self._header
+    local size = H.sizeof_size_t
+    return integer.decode(H.endian, "I", size, self:read(size))
+  end
+
+  function self:read_integer()
+    local H = self._header
+    local size = H.sizeof_integer
+    return integer.decode(H.endian, "i", size, self:read(size))
+  end
+
+  function self:read_number()
+    local H = self._header
+    local size = H.sizeof_number
+    if H.number == "ieee754" then
+      return ieee754.decode(H.endian, size, self:read(size))
+    else
+      return integer.decode(H.endian, "i", size, self:read(size))
+    end
+  end
+
   function self:read_header_data(H)
     local DATA = "\25\147\r\n\26\n"
     if self:read(#DATA) ~= DATA then
