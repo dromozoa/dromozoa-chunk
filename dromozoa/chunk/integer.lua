@@ -1,15 +1,15 @@
 if string.pack then
-  local function format(size, specifier, endian)
+  local function format(endian, specifier, size)
     return endian .. specifier .. size
   end
 
   return {
-    decode = function (s, specifier, endian)
-      return (format(#s, specifier, endian):unpack(s))
+    decode = function (endian, specifier, s)
+      return (format(endian, specifier, #s):unpack(s))
     end;
 
-    encode = function (v, size, specifier, endian)
-      return format(size, specifier, endian):pack(v)
+    encode = function (endian, specifier, size, v)
+      return format(endian, specifier, size):pack(v)
     end;
   }
 else
@@ -24,7 +24,7 @@ else
   end
 
   return {
-    decode = function (s, specifier, endian)
+    decode = function (endian, specifier, s)
       local buffer = { s:byte(1, -1) }
       if endian == "<" then
         swap(buffer)
@@ -44,7 +44,7 @@ else
       end
     end;
 
-    encode = function (v, size, specifier, endian)
+    encode = function (endian, specifier, size, v)
       local buffer = {}
       if specifier == "i" and v < 0 then
         v = -v - 1

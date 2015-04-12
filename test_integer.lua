@@ -1,9 +1,9 @@
 local integer = require "dromozoa.chunk.integer"
 
 local function test(u, size, specifier)
-  local s = integer.encode(u, size, specifier, "<")
+  local s = integer.encode("<", specifier, size, u)
   assert(#s == size)
-  local v = integer.decode(s, specifier, "<")
+  local v = integer.decode("<", specifier, s)
   assert(u == v)
 end
 
