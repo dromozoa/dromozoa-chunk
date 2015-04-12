@@ -4,8 +4,8 @@ if string.pack then
   end
 
   return {
-    decode = function (endian, specifier, s)
-      return (format(endian, specifier, #s):unpack(s))
+    decode = function (endian, specifier, size, s, position)
+      return (format(endian, specifier, size):unpack(s, position))
     end;
 
     encode = function (endian, specifier, size, v)
@@ -24,15 +24,20 @@ else
   end
 
   return {
-    decode = function (endian, specifier, s)
-      local buffer = { s:byte(1, -1) }
+    decode = function (endian, specifier, size, s, position)
+      if not position then
+        position = 1
+      end
+
+      local buffer = { s:byte(position, position + size - 1) }
       if endian == "<" then
         swap(buffer)
       end
+
       if specifier == "i" and buffer[1] > 127 then
         local v = 0
         for i = 1, #buffer do
-          v = v * 256 - 255 + buffer[i]
+          v = v * 256 + buffer[i] - 255
         end
         return v - 1
       else

@@ -1,26 +1,25 @@
 local integer = require "dromozoa.chunk.integer"
 
-local function test(u, size, specifier)
+local function test(specifier, size, u)
   local s = integer.encode("<", specifier, size, u)
   assert(#s == size)
-  local v = integer.decode("<", specifier, s)
+  local v = integer.decode("<", specifier, size, s)
   assert(u == v)
 end
 
 for i = 4, 8, 4 do
-  io.write(test(0x00000000, i, "I"))
-  io.write(test(0x00000001, i, "I"))
-  io.write(test(0x7FFFFFFF, i, "I"))
-  io.write(test(0xFFFFFFFF, i, "I"))
-
-  io.write(test(1, i, "i"))
-  io.write(test(0, i, "i"))
-  io.write(test(-1, i, "i"))
-  io.write(test(2147483647, i, "i"))
-  io.write(test(-2147483647, i, "i"))
-  io.write(test(-2147483648, i, "i"))
+  io.write(test("I", i, 0x00000000))
+  io.write(test("I", i, 0x00000001))
+  io.write(test("I", i, 0x7FFFFFFF))
+  io.write(test("I", i, 0xFFFFFFFF))
+  io.write(test("i", i,  1))
+  io.write(test("i", i,  0))
+  io.write(test("i", i, -1))
+  io.write(test("i", i,  2147483647))
+  io.write(test("i", i, -2147483647))
+  io.write(test("i", i, -2147483648))
 end
 
-io.write(test(2^53, 8, "I"))
-io.write(test(2^53, 8, "i"))
-io.write(test(-2^53, 8, "i"))
+io.write(test("I", 8,  2^53))
+io.write(test("i", 8,  2^53))
+io.write(test("i", 8, -2^53))
