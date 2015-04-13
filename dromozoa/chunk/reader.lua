@@ -47,6 +47,10 @@ return function (handle)
     end
   end
 
+  function self:read_boolean()
+    return self:read_byte() ~= 0
+  end
+
   function self:read_integer_impl(specifier, size)
     return integer.decode(self._header.endian, specifier, size, self:read(size))
   end
@@ -114,7 +118,7 @@ return function (handle)
   end
 
   function self:read_header_5_1(H)
-    if self:read_byte() ~= 0 then
+    if self:read_boolean() then
       H.endian = "<"
     else
       H.endian = ">"
@@ -123,7 +127,7 @@ return function (handle)
     H.sizeof_size_t = self:read_byte()
     H.sizeof_instruction = self:read_byte()
     H.sizeof_number = self:read_byte()
-    if self:read_byte() ~= 0 then
+    if self:read_boolean() then
       H.number = "integer"
     else
       H.number = "ieee754"
@@ -201,7 +205,7 @@ return function (handle)
       local t = self:read_byte()
       local v
       if t == 1 then -- LUA_TBOOLEAN
-        v = self:read_byte() ~= 0
+        v = self:read_boolean()
       elseif t == 3 then -- LUA_TNUMBER (LUA_TNUMFLT)
         v = self:read_number()
       elseif t == 19 then -- LUA_TNUMINT
@@ -219,7 +223,7 @@ return function (handle)
     for i = 1, self:read_int() do
       local upvalue = {}
       upvalues[i] = upvalue
-      upvalue.in_stack = self:read_byte() ~= 0
+      upvalue.in_stack = self:read_boolean()
       upvalue.idx = self:read_byte()
     end
   end
@@ -275,7 +279,7 @@ return function (handle)
       upvalues[i] = {}
     end
     F.num_params = self:read_byte()
-    F.is_var_arg = self:read_byte() ~= 0
+    F.is_var_arg = self:read_boolean()
     F.max_stack_size = self:read_byte()
     self:read_code(F)
     self:read_constants(F)
@@ -287,7 +291,7 @@ return function (handle)
     F.line_defined = self:read_int()
     F.last_line_defined = self:read_int()
     F.num_params = self:read_byte()
-    F.is_var_arg = self:read_byte() ~= 0
+    F.is_var_arg = self:read_boolean()
     F.max_stack_size = self:read_byte()
     self:read_code(F)
     self:read_constants(F)
@@ -302,7 +306,7 @@ return function (handle)
     F.line_defined = self:read_int()
     F.last_line_defined = self:read_int()
     F.num_params = self:read_byte()
-    F.is_var_arg = self:read_byte() ~= 0
+    F.is_var_arg = self:read_boolean()
     F.max_stack_size = self:read_byte()
     self:read_code(F)
     self:read_constants(F)
@@ -317,18 +321,18 @@ return function (handle)
     return F
   end
 
-  function self:read_chunk_5_1(C)
-    C.func = self:read_function()
+  function self:read_body_5_1(C)
+    C.body = self:read_function()
   end
 
-  function self:read_chunk_5_2(C)
-    self:read_chunk_5_1(C)
+  function self:read_body_5_2(C)
+    self:read_body_5_1(C)
   end
 
-  function self:read_chunk_5_3(C)
+  function self:read_body_5_3(C)
     local size_upvalues = self:read_byte()
-    C.func = self:read_function()
-    if size_upvalues ~= #C.func.upvalues then
+    C.body = self:read_function()
+    if size_upvalues ~= #C.body.upvalues then
       self:raise()
     end
   end
@@ -336,7 +340,7 @@ return function (handle)
   function self:read_chunk()
     local C = {}
     C.header = self:read_header()
-    self["read_chunk" .. self._version_suffix](self, C)
+    self["read_body" .. self._version_suffix](self, C)
     return C
   end
 

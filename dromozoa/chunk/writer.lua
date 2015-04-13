@@ -15,6 +15,9 @@
 -- You should have received a copy of the GNU General Public License
 -- along with dromozoa-chunk.  If not, see <http://www.gnu.org/licenses/>.
 
+local ieee754 = require "dromozoa.chunk.ieee754"
+local integer = require "dromozoa.chunk.integer"
+
 return function (handle)
   local self = {
     _h = handle;
@@ -36,7 +39,7 @@ return function (handle)
     end
   end
 
-  function self:write_integer_impl(sepcifier, size, v)
+  function self:write_integer_impl(specifier, size, v)
     self:write(integer.encode(self._header.endian, specifier, size, v))
   end
 
@@ -50,6 +53,10 @@ return function (handle)
 
   function self:write_instruction(v)
     self:write_integer_impl("I", self._header.sizeof_instruction, v)
+  end
+
+  function self:write_integer(v)
+    self:write_integer_impl("i", self._header.sizeof_integer, v)
   end
 
   function self:write_number(v)
@@ -100,12 +107,12 @@ return function (handle)
   end
 
   function self:write_header_5_1(H)
-    self.write_boolean(H.endian == "<")
+    self:write_boolean(H.endian == "<")
     self:write_byte(H.sizeof_int)
     self:write_byte(H.sizeof_size_t)
     self:write_byte(H.sizeof_instruction)
     self:write_byte(H.sizeof_number)
-    self.write_boolean(H.number == "integer")
+    self:write_boolean(H.number == "integer")
   end
 
   function self:write_header_5_2(H)
@@ -129,7 +136,7 @@ return function (handle)
     self:write("\27Lua")
     self:write_byte(H.major_version * 16 + H.minor_version)
     self._version_suffix = string.format("_%d_%d", H.major_version, H.minor_version)
-    self.write_byte(0)
+    self:write_byte(0)
     self["write_header" .. self._version_suffix](self, H)
   end
 
@@ -145,7 +152,7 @@ return function (handle)
   function self:write_constant_5_1(t, v)
     if t == "boolean" then
       self:write_byte(1) -- LUA_TBOOLEAN
-      self.write_boolean(v)
+      self:write_boolean(v)
     elseif t == "number" then
       self:write_byte(3) -- LUA_TNUMBER
       self:write_number(v)
@@ -164,7 +171,7 @@ return function (handle)
   function self:write_constant_5_3(t, v)
     if t == "boolean" then
       self:write_byte(1) -- LUA_TBOOLEAN
-      self.write_boolean(v)
+      self:write_boolean(v)
     elseif t == "number" then
       if v % 1 == 0 then
         self:write_byte(19) -- LUA_TNUMINT
@@ -217,7 +224,7 @@ return function (handle)
 
   function self:write_debug_line_info(F)
     local line_info = F.line_info
-    local n = line_info
+    local n = #line_info
     self:write_int(n)
     for i = 1, n do
       self:write_int(line_info[i])
@@ -240,7 +247,7 @@ return function (handle)
     local upvalues = F.upvalues
     local n = #upvalues
     self:write_int(n)
-    for i = 1, self:read_int() do
+    for i = 1, n do
       self:write_string(upvalues[i].name)
     end
   end
@@ -297,22 +304,23 @@ return function (handle)
     self["write_function" .. self._version_suffix](self, F)
   end
 
-  function self:write_chunk_5_1(C)
-    self:write_function(C.func)
+  function self:write_body_5_1(C)
+    self:write_function(C.body)
   end
 
-  function self:write_chunk_5_2(C)
-    self:write_chunk_5_1(C)
+  function self:write_body_5_2(C)
+    self:write_body_5_1(C)
   end
 
-  function self:write_chunk_5_3(C)
-    local F = C.func
-    self:write_byte(F.upvalues)
-    self:write_function(F)
+  function self:write_body_5_3(C)
+    self:write_byte(#C.body.upvalues)
+    self:write_function(C.body)
   end
 
   function self:write_chunk(C)
     self:write_header(C.header)
-    self["write_chunk" .. self._version_suffix](self, C)
+    self["write_body" .. self._version_suffix](self, C)
   end
+
+  return self
 end
