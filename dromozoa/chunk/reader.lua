@@ -47,28 +47,24 @@ return function (handle)
     end
   end
 
+  function self:read_integer_impl(specifier, size)
+    return integer.decode(self._header.endian, specifier, size, self:read(size))
+  end
+
   function self:read_int()
-    local H = self._header
-    local size = H.sizeof_int
-    return integer.decode(H.endian, "i", size, self:read(size))
+    return self:read_integer_impl("i", self._header.sizeof_int)
   end
 
   function self:read_size_t()
-    local H = self._header
-    local size = H.sizeof_size_t
-    return integer.decode(H.endian, "I", size, self:read(size))
+    return self:read_integer_impl("I", self._header.sizeof_size_t)
   end
 
   function self:read_instruction()
-    local H = self._header
-    local size = H.sizeof_instruction
-    return integer.decode(H.endian, "I", size, self:read(size))
+    return self:read_integer_impl("I", self._header.sizeof_instruction)
   end
 
   function self:read_integer()
-    local H = self._header
-    local size = H.sizeof_integer
-    return integer.decode(H.endian, "i", size, self:read(size))
+    return self:read_integer_impl("i", self._header.sizeof_integer)
   end
 
   function self:read_number()
@@ -77,7 +73,7 @@ return function (handle)
     if H.number == "ieee754" then
       return ieee754.decode(H.endian, size, self:read(size))
     else
-      return integer.decode(H.endian, "i", size, self:read(size))
+      return self:read_integer_impl("i", size)
     end
   end
 
@@ -258,34 +254,33 @@ return function (handle)
 
   function self:read_debug_upvalues(F)
     local upvalues = F.upvalues
-    if not upvalues then
-      upvalues = {}
-      F.upvalues = upvalues
-    end
     for i = 1, self:read_int() do
-      local upvalue = upvalues[i]
-      if not upvalue then
-        upvalue = {}
-        upvalues[i] = upvalue
-      end
-      upvalue.name = self:read_string()
+      upvalues[i].name = self:read_string()
     end
+  end
+
+  function self:read_debug(F)
+    self:read_debug_line_info(F)
+    self:read_debug_loc_vars(F)
+    self:read_debug_upvalues(F)
   end
 
   function self:read_function_5_1(F)
     F.source = self:read_string()
     F.line_defined = self:read_int()
     F.last_line_defined = self:read_int()
-    F.nups = self:read_byte()
+    local upvalues = {}
+    F.upvalues = upvalues
+    for i = 1, self:read_byte() do
+      upvalues[i] = {}
+    end
     F.num_params = self:read_byte()
     F.is_vararg = self:read_byte() ~= 0
     F.max_stack_size = self:read_byte()
     self:read_code(F)
     self:read_constants(F)
     self:read_protos(F)
-    self:read_debug_line_info(F)
-    self:read_debug_loc_vars(F)
-    self:read_debug_upvalues(F)
+    self:read_debug(F)
   end
 
   function self:read_function_5_2(F)
@@ -299,9 +294,7 @@ return function (handle)
     self:read_protos(F)
     self:read_upvalues(F)
     F.source = self:read_string()
-    self:read_debug_line_info(F)
-    self:read_debug_loc_vars(F)
-    self:read_debug_upvalues(F)
+    self:read_debug(F)
   end
 
   function self:read_function_5_3(F)
@@ -315,9 +308,7 @@ return function (handle)
     self:read_constants(F)
     self:read_upvalues(F)
     self:read_protos(F)
-    self:read_debug_line_info(F)
-    self:read_debug_loc_vars(F)
-    self:read_debug_upvalues(F)
+    self:read_debug(F)
   end
 
   function self:read_function()
@@ -326,14 +317,27 @@ return function (handle)
     return F
   end
 
-  function self:read_chunk()
-    local chunk = {}
-    chunk.header = self:read_header()
-    if self._header.minor_version == 3 then
-      chunk.size_upvalues = self:read_byte()
+  function self:read_chunk_5_1(C)
+    C.func = self:read_function()
+  end
+
+  function self:read_chunk_5_2(C)
+    C.func = self:read_function()
+  end
+
+  function self:read_chunk_5_3(C)
+    local size_upvalues = self:read_byte()
+    C.func = self:read_function()
+    if size_upvalues ~= #C.func.upvalues then
+      self:raise()
     end
-    chunk.func = self:read_function()
-    return chunk
+  end
+
+  function self:read_chunk()
+    local C = {}
+    C.header = self:read_header()
+    self["read_chunk" .. self._version_suffix](self, C)
+    return C
   end
 
   return self
