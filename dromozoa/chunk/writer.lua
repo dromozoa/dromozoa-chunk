@@ -177,7 +177,7 @@ return function (handle)
         self:write_byte(19) -- LUA_TNUMINT
         self:write_integer(v)
       else
-        self:write_byte(4) -- LUA_TNUMFLT
+        self:write_byte(3) -- LUA_TNUMFLT
         self:write_number(v)
       end
     elseif t == "string" then

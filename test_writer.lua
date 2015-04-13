@@ -18,10 +18,55 @@
 local reader = require "dromozoa.chunk.reader"
 local writer = require "dromozoa.chunk.writer"
 
-local r = reader(io.stdin)
+function buffer_reader(s)
+  local self = {
+    _s = s;
+    _i = 1;
+  }
+
+  function self:read(n)
+    local i = self._i
+    local j = i + n - 1
+    self._i = j + 1
+    return self._s:sub(i, j)
+  end
+
+  return self
+end
+
+function buffer_writer()
+  local self = {
+    _t = {}
+  }
+
+  function self:write(s)
+    local t = self._t
+    t[#t + 1] = s
+  end
+
+  function self:concat()
+    return table.concat(self._t)
+  end
+
+  return self
+end
+
+local s = string.dump(function () print(0.25, 0.5) end)
+local br = buffer_reader(s)
+local r = reader(br)
 local chunk = r:read_chunk()
 
-local w = writer(io.stdout)
+local constants = chunk.body.constants
+for i = 1, #constants do
+  local v = constants[i]
+  if v == 0.25 then
+    constants[i] = 4
+  end
+end
+
+local bw = buffer_writer()
+local w = writer(bw)
 w:write_chunk(chunk)
 
-
+-- assert(s == bw:concat())
+io.write(bw:concat())
