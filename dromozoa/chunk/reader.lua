@@ -47,22 +47,28 @@ return function (handle)
     end
   end
 
+  function self:read_boolean()
+    return self:read_byte() ~= 0
+  end
+
+  function self:read_integer_impl(specifier, size)
+    return integer.decode(self._header.endian, specifier, size, self:read(size))
+  end
+
   function self:read_int()
-    local H = self._header
-    local size = H.sizeof_int
-    return integer.decode(H.endian, "i", size, self:read(size))
+    return self:read_integer_impl("i", self._header.sizeof_int)
   end
 
   function self:read_size_t()
-    local H = self._header
-    local size = H.sizeof_size_t
-    return integer.decode(H.endian, "I", size, self:read(size))
+    return self:read_integer_impl("I", self._header.sizeof_size_t)
+  end
+
+  function self:read_instruction()
+    return self:read_integer_impl("I", self._header.sizeof_instruction)
   end
 
   function self:read_integer()
-    local H = self._header
-    local size = H.sizeof_integer
-    return integer.decode(H.endian, "i", size, self:read(size))
+    return self:read_integer_impl("i", self._header.sizeof_integer)
   end
 
   function self:read_number()
@@ -71,8 +77,37 @@ return function (handle)
     if H.number == "ieee754" then
       return ieee754.decode(H.endian, size, self:read(size))
     else
-      return integer.decode(H.endian, "i", size, self:read(size))
+      return self:read_integer_impl("i", size)
     end
+  end
+
+  function self:read_string_5_1()
+    local n = self:read_size_t()
+    if n > 0 then
+      local v = self:read(n - 1)
+      if self:read_byte() ~= 0 then
+        self:raise()
+      end
+      return v
+    end
+  end
+
+  function self:read_string_5_2()
+    return self:read_string_5_1()
+  end
+
+  function self:read_string_5_3()
+    local n = self:read_byte()
+    if n == 255 then
+      n = self:read_size_t()
+    end
+    if n > 0 then
+      return self:read(n - 1)
+    end
+  end
+
+  function self:read_string()
+    return self["read_string" .. self._version_suffix](self)
   end
 
   function self:read_header_data(H)
@@ -83,7 +118,7 @@ return function (handle)
   end
 
   function self:read_header_5_1(H)
-    if self:read_byte() ~= 0 then
+    if self:read_boolean() then
       H.endian = "<"
     else
       H.endian = ">"
@@ -92,7 +127,7 @@ return function (handle)
     H.sizeof_size_t = self:read_byte()
     H.sizeof_instruction = self:read_byte()
     H.sizeof_number = self:read_byte()
-    if self:read_byte() ~= 0 then
+    if self:read_boolean() then
       H.number = "integer"
     else
       H.number = "ieee754"
@@ -153,6 +188,160 @@ return function (handle)
 
     self["read_header" .. self._version_suffix](self, H)
     return H
+  end
+
+  function self:read_code(F)
+    local code = {}
+    F.code = code
+    for i = 1, self:read_int() do
+      code[i] = self:read_instruction()
+    end
+  end
+
+  function self:read_constants(F)
+    local constants = {}
+    F.constants = constants
+    for i = 1, self:read_int() do
+      local t = self:read_byte()
+      local v
+      if t == 1 then -- LUA_TBOOLEAN
+        v = self:read_boolean()
+      elseif t == 3 then -- LUA_TNUMBER (LUA_TNUMFLT)
+        v = self:read_number()
+      elseif t == 19 then -- LUA_TNUMINT
+        v = self:read_integer()
+      elseif t == 4 or t == 20 then -- LUA_TSTRING (LUA_TSHRSTR), LUA_TLNGSTR
+        v = self:read_string()
+      end
+      constants[i] = v
+    end
+  end
+
+  function self:read_upvalues(F)
+    local upvalues = {}
+    F.upvalues = upvalues
+    for i = 1, self:read_int() do
+      local upvalue = {}
+      upvalues[i] = upvalue
+      upvalue.in_stack = self:read_boolean()
+      upvalue.idx = self:read_byte()
+    end
+  end
+
+  function self:read_protos(F)
+    local protos = {}
+    F.protos = protos
+    for i = 1, self:read_int() do
+      protos[i] = self:read_function()
+    end
+  end
+
+  function self:read_debug_line_info(F)
+    local line_info = {}
+    F.line_info = line_info
+    for i = 1, self:read_int() do
+      line_info[i] = self:read_int()
+    end
+  end
+
+  function self:read_debug_loc_vars(F)
+    local loc_vars = {}
+    F.loc_vars = {}
+    for i = 1, self:read_int() do
+      local loc_var = {}
+      loc_vars[i] = loc_var
+      loc_var.varname = self:read_string()
+      loc_var.start_pc = self:read_int()
+      loc_var.end_pc = self:read_int()
+    end
+  end
+
+  function self:read_debug_upvalues(F)
+    local upvalues = F.upvalues
+    for i = 1, self:read_int() do
+      upvalues[i].name = self:read_string()
+    end
+  end
+
+  function self:read_debug(F)
+    self:read_debug_line_info(F)
+    self:read_debug_loc_vars(F)
+    self:read_debug_upvalues(F)
+  end
+
+  function self:read_function_5_1(F)
+    F.source = self:read_string()
+    F.line_defined = self:read_int()
+    F.last_line_defined = self:read_int()
+    local upvalues = {}
+    F.upvalues = upvalues
+    for i = 1, self:read_byte() do
+      upvalues[i] = {}
+    end
+    F.num_params = self:read_byte()
+    F.is_var_arg = self:read_boolean()
+    F.max_stack_size = self:read_byte()
+    self:read_code(F)
+    self:read_constants(F)
+    self:read_protos(F)
+    self:read_debug(F)
+  end
+
+  function self:read_function_5_2(F)
+    F.line_defined = self:read_int()
+    F.last_line_defined = self:read_int()
+    F.num_params = self:read_byte()
+    F.is_var_arg = self:read_boolean()
+    F.max_stack_size = self:read_byte()
+    self:read_code(F)
+    self:read_constants(F)
+    self:read_protos(F)
+    self:read_upvalues(F)
+    F.source = self:read_string()
+    self:read_debug(F)
+  end
+
+  function self:read_function_5_3(F)
+    F.source = self:read_string()
+    F.line_defined = self:read_int()
+    F.last_line_defined = self:read_int()
+    F.num_params = self:read_byte()
+    F.is_var_arg = self:read_boolean()
+    F.max_stack_size = self:read_byte()
+    self:read_code(F)
+    self:read_constants(F)
+    self:read_upvalues(F)
+    self:read_protos(F)
+    self:read_debug(F)
+  end
+
+  function self:read_function()
+    local F = {}
+    self["read_function" .. self._version_suffix](self, F)
+    return F
+  end
+
+  function self:read_body_5_1(C)
+    C.body = self:read_function()
+  end
+
+  function self:read_body_5_2(C)
+    self:read_body_5_1(C)
+  end
+
+  function self:read_body_5_3(C)
+    local size_upvalues = self:read_byte()
+    C.body = self:read_function()
+    if size_upvalues ~= #C.body.upvalues then
+      self:raise()
+    end
+  end
+
+  function self:read_chunk()
+    local C = {}
+    C.header = self:read_header()
+    self["read_body" .. self._version_suffix](self, C)
+    return C
   end
 
   return self
