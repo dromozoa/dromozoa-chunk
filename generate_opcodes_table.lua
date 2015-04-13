@@ -21,60 +21,113 @@ local opcodes_5_3 = require "dromozoa.chunk.opcodes_5_3"
 
 local unpack = table.unpack or unpack
 
+local tsv = false
+
 local opcodes = {
   { "5.1", opcodes_5_1 };
   { "5.2", opcodes_5_2 };
   { "5.3", opcodes_5_3 };
 }
 
-local table = {}
+local map = {}
 for i = 1, #opcodes_5_1 do
   local opcode = opcodes_5_1[i]
-  local t = table[opcode[2]]
+  local t = map[opcode[2]]
   if t then
     t["5.1"] = opcode
   else
-    table[opcode[2]] = { ["5.1"] = opcode }
+    map[opcode[2]] = { ["5.1"] = opcode }
   end
 end
 for i = 1, #opcodes_5_2 do
   local opcode = opcodes_5_2[i]
-  local t = table[opcode[2]]
+  local t = map[opcode[2]]
   if t then
     t["5.2"] = opcode
   else
-    table[opcode[2]] = { ["5.2"] = opcode }
+    map[opcode[2]] = { ["5.2"] = opcode }
   end
 end
 for i = 1, #opcodes_5_3 do
   local opcode = opcodes_5_3[i]
-  local t = table[opcode[2]]
+  local t = map[opcode[2]]
   if t then
     t["5.3"] = opcode
   else
-    table[opcode[2]] = { ["5.3"] = opcode }
+    map[opcode[2]] = { ["5.3"] = opcode }
   end
 end
 
-for k, v in pairs(table) do
-  io.write(k)
-  local opcode_5_1 = v["5.1"]
-  local opcode_5_2 = v["5.2"]
-  local opcode_5_3 = v["5.3"]
-  if opcode_5_1 then
-    io.write("\t", opcode_5_1[1], "\t", opcode_5_1[7])
-  else
-    io.write("\t\t")
+local tbl = {}
+for k, v in pairs(map) do
+  v.name = k
+  v["5.1"] = v["5.1"] or {}
+  v["5.2"] = v["5.2"] or {}
+  v["5.3"] = v["5.3"] or {}
+  tbl[#tbl + 1] = v
+end
+
+table.sort(tbl, function (a, b)
+  local u = a["5.3"][1]
+  local v = b["5.3"][1]
+  if u == nil and v == nil then
+    local u = a["5.2"][1]
+    local v = b["5.2"][1]
+    if u == nil and v == nil then
+      local u = a["5.1"][1]
+      local v = b["5.1"][1]
+      if u == nil or v == nil then
+        return v == nil
+      end
+      return u < v
+    end
+    if u == nil or v == nil then
+      return v == nil
+    end
+    return u < v
   end
-  if opcode_5_2 then
-    io.write("\t", opcode_5_2[1], "\t", opcode_5_2[7])
-  else
-    io.write("\t\t")
+  if u == nil or v == nil then
+    return v == nil
   end
-  if opcode_5_3 then
-    io.write("\t", opcode_5_3[1], "\t", opcode_5_3[7])
-  else
-    io.write("\t\t")
+  return u < v
+end)
+
+if tsv then
+  function write_opcode(opcode)
+    local code, name, t, a, b, c, mode = unpack(opcode)
+    if code then
+      io.write("\t", code, "\t", t and "1" or "0", "\t", a and "1" or "0", "\t", b, "\t", c, "\t", mode)
+    else
+      io.write("\t\t\t\t\t\t")
+    end
   end
-  io.write "\n"
+
+  for i = 1, #tbl do
+    local v = tbl[i]
+    io.write(v.name)
+    write_opcode(v["5.1"])
+    write_opcode(v["5.2"])
+    write_opcode(v["5.3"])
+    io.write "\n"
+  end
+else
+  function write_opcode(opcode)
+    local code, name, t, a, b, c, mode = unpack(opcode)
+    if code then
+      io.write("|", code, "|", t and "1" or "0", "|", a and "1" or "0", "|", b, "|", c, "|", mode)
+    else
+      io.write("||||||")
+    end
+  end
+
+  io.write("|Mnemonic|5.1|T|A|B|C|Mode|5.2|T|A|B|C|Mode|5.3|T|A|B|C|Mode|\n")
+  io.write(string.rep("|", 20, "---"), "\n")
+  for i = 1, #tbl do
+    local v = tbl[i]
+    io.write("|", v.name)
+    write_opcode(v["5.1"])
+    write_opcode(v["5.2"])
+    write_opcode(v["5.3"])
+    io.write "|\n"
+  end
 end
