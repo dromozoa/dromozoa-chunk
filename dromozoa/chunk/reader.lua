@@ -79,7 +79,7 @@ return function (handle)
 
   function self:read_string_5_1()
     local n = self:read_size_t()
-    if n ~= 0 then
+    if n > 0 then
       local v = self:read(n - 1)
       if self:read_byte() ~= 0 then
         self:raise()
@@ -97,7 +97,7 @@ return function (handle)
     if n == 255 then
       n = self:read_size_t()
     end
-    if n ~= 0 then
+    if n > 0 then
       return self:read(n - 1)
     end
   end
@@ -219,7 +219,7 @@ return function (handle)
     for i = 1, self:read_int() do
       local upvalue = {}
       upvalues[i] = upvalue
-      upvalue.in_stack = self:read_byte()
+      upvalue.in_stack = self:read_byte() ~= 0
       upvalue.idx = self:read_byte()
     end
   end
@@ -247,8 +247,8 @@ return function (handle)
       local loc_var = {}
       loc_vars[i] = loc_var
       loc_var.varname = self:read_string()
-      loc_var.startpc = self:read_int()
-      loc_var.endpc = self:read_int()
+      loc_var.start_pc = self:read_int()
+      loc_var.end_pc = self:read_int()
     end
   end
 
@@ -275,7 +275,7 @@ return function (handle)
       upvalues[i] = {}
     end
     F.num_params = self:read_byte()
-    F.is_vararg = self:read_byte() ~= 0
+    F.is_var_arg = self:read_byte() ~= 0
     F.max_stack_size = self:read_byte()
     self:read_code(F)
     self:read_constants(F)
@@ -287,7 +287,7 @@ return function (handle)
     F.line_defined = self:read_int()
     F.last_line_defined = self:read_int()
     F.num_params = self:read_byte()
-    F.is_vararg = self:read_byte() ~= 0
+    F.is_var_arg = self:read_byte() ~= 0
     F.max_stack_size = self:read_byte()
     self:read_code(F)
     self:read_constants(F)
@@ -302,7 +302,7 @@ return function (handle)
     F.line_defined = self:read_int()
     F.last_line_defined = self:read_int()
     F.num_params = self:read_byte()
-    F.is_vararg = self:read_byte() ~= 0
+    F.is_var_arg = self:read_byte() ~= 0
     F.max_stack_size = self:read_byte()
     self:read_code(F)
     self:read_constants(F)
@@ -322,7 +322,7 @@ return function (handle)
   end
 
   function self:read_chunk_5_2(C)
-    C.func = self:read_function()
+    self:read_chunk_5_1(C)
   end
 
   function self:read_chunk_5_3(C)
