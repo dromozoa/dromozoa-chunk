@@ -19,5 +19,6 @@ local json = require "dromozoa.json"
 local reader = require "dromozoa.chunk.reader"
 
 local r = reader(io.stdin)
-local header = r:read_header()
-print(json.encode(header))
+local chunk = r:read_chunk()
+assert(r:read_byte() == nil)
+print(json.encode(chunk))

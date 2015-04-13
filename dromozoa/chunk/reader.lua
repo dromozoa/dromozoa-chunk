@@ -59,6 +59,12 @@ return function (handle)
     return integer.decode(H.endian, "I", size, self:read(size))
   end
 
+  function self:read_instruction()
+    local H = self._header
+    local size = H.sizeof_instruction
+    return integer.decode(H.endian, "I", size, self:read(size))
+  end
+
   function self:read_integer()
     local H = self._header
     local size = H.sizeof_integer
@@ -73,6 +79,35 @@ return function (handle)
     else
       return integer.decode(H.endian, "i", size, self:read(size))
     end
+  end
+
+  function self:read_string_5_1()
+    local n = self:read_size_t()
+    if n ~= 0 then
+      local v = self:read(n - 1)
+      if self:read_byte() ~= 0 then
+        self:raise()
+      end
+      return v
+    end
+  end
+
+  function self:read_string_5_2()
+    return self:read_string_5_1()
+  end
+
+  function self:read_string_5_3()
+    local n = self:read_byte()
+    if n == 255 then
+      n = self:read_size_t()
+    end
+    if n ~= 0 then
+      return self:read(n - 1)
+    end
+  end
+
+  function self:read_string()
+    return self["read_string" .. self._version_suffix](self)
   end
 
   function self:read_header_data(H)
@@ -153,6 +188,152 @@ return function (handle)
 
     self["read_header" .. self._version_suffix](self, H)
     return H
+  end
+
+  function self:read_code(F)
+    local code = {}
+    F.code = code
+    for i = 1, self:read_int() do
+      code[i] = self:read_instruction()
+    end
+  end
+
+  function self:read_constants(F)
+    local constants = {}
+    F.constants = constants
+    for i = 1, self:read_int() do
+      local t = self:read_byte()
+      local v
+      if t == 1 then -- LUA_TBOOLEAN
+        v = self:read_byte() ~= 0
+      elseif t == 3 then -- LUA_TNUMBER (LUA_TNUMFLT)
+        v = self:read_number()
+      elseif t == 19 then -- LUA_TNUMINT
+        v = self:read_integer()
+      elseif t == 4 or t == 20 then -- LUA_TSTRING (LUA_TSHRSTR), LUA_TLNGSTR
+        v = self:read_string()
+      end
+      constants[i] = v
+    end
+  end
+
+  function self:read_upvalues(F)
+    local upvalues = {}
+    F.upvalues = upvalues
+    for i = 1, self:read_int() do
+      local upvalue = {}
+      upvalues[i] = upvalue
+      upvalue.in_stack = self:read_byte()
+      upvalue.idx = self:read_byte()
+    end
+  end
+
+  function self:read_protos(F)
+    local protos = {}
+    F.protos = protos
+    for i = 1, self:read_int() do
+      protos[i] = self:read_function()
+    end
+  end
+
+  function self:read_debug_line_info(F)
+    local line_info = {}
+    F.line_info = line_info
+    for i = 1, self:read_int() do
+      line_info[i] = self:read_int()
+    end
+  end
+
+  function self:read_debug_loc_vars(F)
+    local loc_vars = {}
+    F.loc_vars = {}
+    for i = 1, self:read_int() do
+      local loc_var = {}
+      loc_vars[i] = loc_var
+      loc_var.varname = self:read_string()
+      loc_var.startpc = self:read_int()
+      loc_var.endpc = self:read_int()
+    end
+  end
+
+  function self:read_debug_upvalues(F)
+    local upvalues = F.upvalues
+    if not upvalues then
+      upvalues = {}
+      F.upvalues = upvalues
+    end
+    for i = 1, self:read_int() do
+      local upvalue = upvalues[i]
+      if not upvalue then
+        upvalue = {}
+        upvalues[i] = upvalue
+      end
+      upvalue.name = self:read_string()
+    end
+  end
+
+  function self:read_function_5_1(F)
+    F.source = self:read_string()
+    F.line_defined = self:read_int()
+    F.last_line_defined = self:read_int()
+    F.nups = self:read_byte()
+    F.num_params = self:read_byte()
+    F.is_vararg = self:read_byte() ~= 0
+    F.max_stack_size = self:read_byte()
+    self:read_code(F)
+    self:read_constants(F)
+    self:read_protos(F)
+    self:read_debug_line_info(F)
+    self:read_debug_loc_vars(F)
+    self:read_debug_upvalues(F)
+  end
+
+  function self:read_function_5_2(F)
+    F.line_defined = self:read_int()
+    F.last_line_defined = self:read_int()
+    F.num_params = self:read_byte()
+    F.is_vararg = self:read_byte() ~= 0
+    F.max_stack_size = self:read_byte()
+    self:read_code(F)
+    self:read_constants(F)
+    self:read_protos(F)
+    self:read_upvalues(F)
+    F.source = self:read_string()
+    self:read_debug_line_info(F)
+    self:read_debug_loc_vars(F)
+    self:read_debug_upvalues(F)
+  end
+
+  function self:read_function_5_3(F)
+    F.source = self:read_string()
+    F.line_defined = self:read_int()
+    F.last_line_defined = self:read_int()
+    F.num_params = self:read_byte()
+    F.is_vararg = self:read_byte() ~= 0
+    F.max_stack_size = self:read_byte()
+    self:read_code(F)
+    self:read_constants(F)
+    self:read_upvalues(F)
+    self:read_protos(F)
+    self:read_debug_line_info(F)
+    self:read_debug_loc_vars(F)
+    self:read_debug_upvalues(F)
+  end
+
+  function self:read_function()
+    local F = {}
+    self["read_function" .. self._version_suffix](self, F)
+    return F
+  end
+
+  function self:read_chunk()
+    local chunk = {}
+    chunk.header = self:read_header()
+    if self._header.minor_version == 3 then
+      chunk.size_upvalues = self:read_byte()
+    end
+    chunk.func = self:read_function()
+    return chunk
   end
 
   return self
