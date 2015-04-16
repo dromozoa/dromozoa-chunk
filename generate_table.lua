@@ -69,7 +69,7 @@ table.sort(tbl, function (a, b)
 end)
 
 local header = {
-  "Mnemonic",
+  "Name",
   "5.1", "T", "A", "B", "C", "Mode",
   "5.2", "T", "A", "B", "C", "Mode",
   "5.3", "T", "A", "B", "C", "Mode",

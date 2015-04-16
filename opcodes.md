@@ -1,4 +1,4 @@
-Mnemonic|5.1|T|A|B|C|Mode|5.2|T|A|B|C|Mode|5.3|T|A|B|C|Mode
+Name|5.1|T|A|B|C|Mode|5.2|T|A|B|C|Mode|5.3|T|A|B|C|Mode
 ----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|----
 MOVE|0|0|1|R|N|ABC|0|0|1|R|N|ABC|0|0|1|R|N|ABC
 LOADK|1|0|1|K|N|ABx|1|0|1|K|N|ABx|1|0|1|K|N|ABx
