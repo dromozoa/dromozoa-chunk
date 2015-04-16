@@ -78,7 +78,7 @@ return function (version)
     return opcode + (a + b * 256) * 64
   end
 
-  function self:encode_AsBx(name, b_mode, c_mode, code)
+  function self:encode_AsBx(opcode, b_mode, c_mode, code)
     local a = code[2]
     local b = code[3] + 131071
     assert(0 <= a and a < 256)
@@ -86,9 +86,10 @@ return function (version)
     return opcode + (a + b * 256) * 64
   end
 
-  function self:encode_AsBx(name, b_mode, c_mode, code)
+  function self:encode_Ax(opcode, b_mode, c_mode, code)
     local a = -(code[2] + 1)
     assert(0 <= a and a < 67108864)
+    return opcode + a * 64
   end
 
   function self:encode(code)
