@@ -15,10 +15,10 @@
 -- You should have received a copy of the GNU General Public License
 -- along with dromozoa-chunk.  If not, see <http://www.gnu.org/licenses/>.
 
-local instruction_sets = {
-  ["5.1"] = require "dromozoa.chunk.instruction_set_5_1";
-  ["5.2"] = require "dromozoa.chunk.instruction_set_5_2";
-  ["5.3"] = require "dromozoa.chunk.instruction_set_5_3";
+local opcodes = {
+  ["5.1"] = require "dromozoa.chunk.opcodes_5_1";
+  ["5.2"] = require "dromozoa.chunk.opcodes_5_2";
+  ["5.3"] = require "dromozoa.chunk.opcodes_5_3";
 }
 
 local unpack = table.unpack or unpack
@@ -27,7 +27,7 @@ local mode = ...
 
 local m = 0
 local map = {}
-for k, v in pairs(instruction_sets) do
+for k, v in pairs(opcodes) do
   for i = 1, #v do
     local instruction = v[i]
     local opcode = instruction[1]
