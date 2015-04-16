@@ -17,6 +17,7 @@
 
 local ieee754 = require "dromozoa.chunk.ieee754"
 local integer = require "dromozoa.chunk.integer"
+local opcode_encoder = require "dromozoa.chunk.opcode_encoder"
 
 return function (handle)
   local self = {
@@ -134,8 +135,10 @@ return function (handle)
   function self:write_header(H)
     self._header = H
     self:write("\27Lua")
-    self:write_byte(H.major_version * 16 + H.minor_version)
+    local version = H.major_version * 16 + H.minor_version
+    self:write_byte(version)
     self._version_suffix = string.format("_%d_%d", H.major_version, H.minor_version)
+    self._opcode_encoder = opcode_encoder(version)
     self:write_byte(0)
     self["write_header" .. self._version_suffix](self, H)
   end
@@ -145,7 +148,7 @@ return function (handle)
     local n = #code
     self:write_int(n)
     for i = 1, n do
-      self:write_instruction(code[i])
+      self:write_instruction(self._opcode_encoder:encode(code[i]))
     end
   end
 

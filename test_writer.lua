@@ -56,17 +56,17 @@ local br = buffer_reader(s)
 local r = reader(br)
 local chunk = r:read_chunk()
 
-local constants = chunk.body.constants
-for i = 1, #constants do
-  local v = constants[i]
-  if v == 0.25 then
-    constants[i] = 4
-  end
-end
+-- local constants = chunk.body.constants
+-- for i = 1, #constants do
+--   local v = constants[i]
+--   if v == 0.25 then
+--     constants[i] = 4
+--   end
+-- end
 
 local bw = buffer_writer()
 local w = writer(bw)
 w:write_chunk(chunk)
 
--- assert(s == bw:concat())
+assert(s == bw:concat())
 io.write(bw:concat())

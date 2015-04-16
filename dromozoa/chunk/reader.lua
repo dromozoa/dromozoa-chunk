@@ -196,12 +196,7 @@ return function (handle)
     local code = {}
     F.code = code
     for i = 1, self:read_int() do
-      code[i] = self:read_instruction()
-      local c = self._opcode_decoder:decode(code[i])
-      for j = 1, #c do
-        io.stderr:write("\t", c[j])
-      end
-      io.stderr:write("\n")
+      code[i] = self._opcode_decoder:decode(self:read_instruction())
     end
   end
 

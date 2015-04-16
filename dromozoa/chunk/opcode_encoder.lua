@@ -31,8 +31,8 @@ return function (version)
     local map = self._map
     for i = 1, #set do
       local v = set[i]
-      map[v[1]] = {
-        name = v[2];
+      map[v[2]] = {
+        opcode = v[1];
         b_mode = v[5];
         c_mode = v[6];
         mode = v[7];
@@ -40,54 +40,60 @@ return function (version)
     end
   end
 
-  function self:decode_ABC(name, b_mode, c_mode, operand)
-    local a = operand % 256
-    local bc = (operand - a) / 256
-    local c = bc % 512
-    local b = (bc - c) / 512
-    if b > 255 then
-      b = -(b % 256 + 1)
-    end
-    if c > 255 then
-      c = -(c % 256 + 1)
-    end
-    local result = { name, a }
+  function self:encode_ABC(opcode, b_mode, c_mode, code)
+    local a = code[2]
+    local b = 0
+    local c = 0
+    local i = 3
     if b_mode ~= "N" then
-      result[#result + 1] = b
+      b = code[i]
+      i = i + 1
     end
     if c_mode ~= "N" then
-      result[#result + 1] = c
+      c = code[i]
+      i = i + 1
     end
-    return result
+    if b < 0 then
+      b = 255 - b
+    end
+    if c < 0 then
+      c = 255 - c
+    end
+    assert(0 <= a and a < 256)
+    assert(0 <= b and b < 512)
+    assert(0 <= c and c < 512)
+    return opcode + (a + (b * 512 + c) * 256) * 64
   end
 
-  function self:decode_ABx(name, b_mode, c_mode, operand)
-    local a = operand % 256
-    local b = (operand - a) / 256
-    local result = { name, a }
+  function self:encode_ABx(opcode, b_mode, c_mode, code)
+    local a = code[2]
+    local b = 0
     if b_mode == "K" then
-      result[#result + 1] = -(b + 1)
+      b = -(code[3] + 1)
     elseif b_mode == "U" then
-      result[#result + 1] = b
+      b = code[3]
     end
-    return result
+    assert(0 <= a and a < 256)
+    assert(0 <= b and b < 262144)
+    return opcode + (a + b * 256) * 64
   end
 
-  function self:decode_AsBx(name, b_mode, c_mode, operand)
-    local a = operand % 256
-    local b = (operand - a) / 256 - 131071
-    return { name, a, b }
+  function self:encode_AsBx(name, b_mode, c_mode, code)
+    local a = code[2]
+    local b = code[3] + 131071
+    assert(0 <= a and a < 256)
+    assert(0 <= b and b < 262144)
+    return opcode + (a + b * 256) * 64
   end
 
-  function self:decode_Ax(name, b_mode, c_mode, operand)
-    return { name, -(operand + 1) }
+  function self:encode_AsBx(name, b_mode, c_mode, code)
+    local a = -(code[2] + 1)
+    assert(0 <= a and a < 67108864)
   end
 
-  function self:decode(instruction)
-    local opcode = instruction % 64
-    local operand = (instruction - opcode) / 64
-    local v = self._map[opcode]
-    return self["decode_" .. v.mode](self, v.name, v.b_mode, v.c_mode, operand)
+  function self:encode(code)
+    local v = self._map[code[1]]
+    return self["encode_" .. v.mode](self, v.opcode, v.b_mode, v.c_mode, code)
   end
 
   self:initialize(opcodes[version])
