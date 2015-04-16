@@ -34,12 +34,12 @@ for k, v in pairs(opcodes) do
     if m < opcode then
       m = opcode
     end
-    local mnemonic = instruction[2]
-    local t = map[mnemonic]
+    local name = instruction[2]
+    local t = map[name]
     if t then
       t[k] = instruction
     else
-      map[mnemonic] = { [k] = instruction }
+      map[name] = { [k] = instruction }
     end
   end
 end
@@ -47,7 +47,7 @@ m = m + 1
 
 local tbl = {}
 for k, v in pairs(map) do
-  v.mnemonic = k
+  v.name = k
   v["5.1"] = v["5.1"] or { m }
   v["5.2"] = v["5.2"] or { m }
   v["5.3"] = v["5.3"] or { m }
@@ -76,7 +76,7 @@ local header = {
 }
 
 local function push(out, instruction)
-  local opcode, mnemonic, t, a, b, c, mode = unpack(instruction)
+  local opcode, name, t, a, b, c, mode = unpack(instruction)
   if opcode < m then
     out[#out + 1] = opcode
     out[#out + 1] = t and "1" or "0"
@@ -95,7 +95,7 @@ if mode == "tsv" then
   io.write(table.concat(header, "\t"), "\n")
   for i = 1, #tbl do
     local v = tbl[i]
-    local out = { v.mnemonic }
+    local out = { v.name }
     push(out, v["5.1"])
     push(out, v["5.2"])
     push(out, v["5.3"])
@@ -106,7 +106,7 @@ else
   io.write(string.rep("----", #header, "|"), "\n")
   for i = 1, #tbl do
     local v = tbl[i]
-    local out = { v.mnemonic }
+    local out = { v.name }
     push(out, v["5.1"])
     push(out, v["5.2"])
     push(out, v["5.3"])

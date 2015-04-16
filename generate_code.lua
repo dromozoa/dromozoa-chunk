@@ -22,12 +22,12 @@ local set = {}
 local m = 0
 
 for line in io.lines() do
-  local opmode, mnemonic = line:match("opmode%((.-)%)%s*/%* OP_(.-) %*/")
+  local opmode, name = line:match("opmode%((.-)%)%s*/%* OP_(.-) %*/")
   if opmode then
     local t, a, b, c, mode = opmode:match("^([01]),%s*([01]),%s*OpArg([^%s,]+),%s*OpArg([^%s,]+),%s*i([^%s,]+)$")
     assert(t)
-    set[#set + 1] = { mnemonic, t, a, b, c, mode }
-    local n = #mnemonic
+    set[#set + 1] = { name, t, a, b, c, mode }
+    local n = #name
     if m < n then
       m = n
     end
@@ -36,12 +36,12 @@ end
 
 io.write "return {\n"
 for i = 1, #set do
-  local mnemonic, t, a, b, c, mode = unpack(set[i])
+  local name, t, a, b, c, mode = unpack(set[i])
   io.write(
       format(
           "  { 0x%02X, %-" .. (m + 3) .. "s %-6s %-6s %q, %q, %-6s };\n",
           i - 1,
-          format("%q,", mnemonic),
+          format("%q,", name),
           format("%s,", t == "1" and "true" or "false"),
           format("%s,", a == "1" and "true" or "false"),
           b,
