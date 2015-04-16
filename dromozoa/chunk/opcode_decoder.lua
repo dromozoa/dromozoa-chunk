@@ -82,7 +82,7 @@ return function (version)
   end
 
   function self:decode_Ax(name, b_mode, c_mode, operand)
-    return { name, operand }
+    return { name, -(operand + 1) }
   end
 
   function self:decode(instruction)
