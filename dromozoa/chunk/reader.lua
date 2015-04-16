@@ -17,6 +17,7 @@
 
 local ieee754 = require "dromozoa.chunk.ieee754"
 local integer = require "dromozoa.chunk.integer"
+local instruction_decoder = require "dromozoa.chunk.instruction_decoder"
 
 return function (handle)
   local self = {
@@ -181,6 +182,7 @@ return function (handle)
     H.minor_version = version % 16
     H.major_version = (version - H.minor_version) / 16
     self._version_suffix = string.format("_%d_%d", H.major_version, H.minor_version)
+    self._instruction_decoder = instruction_decoder(version)
 
     if self:read_byte() ~= 0 then
       self:raise "unsupported format"
@@ -195,6 +197,11 @@ return function (handle)
     F.code = code
     for i = 1, self:read_int() do
       code[i] = self:read_instruction()
+      local c = self._instruction_decoder:decode(code[i])
+      for j = 1, #c do
+        io.stderr:write("\t", c[j])
+      end
+      io.stderr:write("\n")
     end
   end
 
