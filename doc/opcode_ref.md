@@ -1,3 +1,5 @@
+# Opcodes Reference
+
 ## Contents
 
 * [MOVE](#move)
@@ -346,6 +348,10 @@ In [LOADKX](#loadkx), the next instruction is always [EXTRAARG](#extraarg).
 | 5.2  | 0x1E | 0 | 1 | U | U | ABC  | A B C | `return R(A)(R(A+1), ..., R(A+B-1))`
 | 5.3  | 0x25 | 0 | 1 | U | U | ABC  | A B C | `return R(A)(R(A+1), ..., R(A+B-1))`
 
+### Notes
+
+* `C`は`0`でなければならない。
+
 ## RETURN
 
 | Ver. | Code | T | A | B | C | Mode | Args  | Description
@@ -465,5 +471,5 @@ In [LOADKX](#loadkx), the next instruction is always [EXTRAARG](#extraarg).
 |  R   | argument is a register or a jump offset
 |  K   | argument is a constant or register/constant
 
-* For comparisons, A specifies what condition the test should accept (`true` or `false`).
+* For comparisons, `A` specifies what condition the test should accept (`true` or `false`).
 * All skips (`pc++`) assume that next instruction is a jump.
