@@ -95,7 +95,7 @@ io.write("\n")
 for i = 1, #data do
   local u = data[i]
   io.write(format("## %s\n\n", u.name))
-  io.write("| Ver. | Code | T | A | B | C | Mode | Args  | Desc\n")
+  io.write("| Ver. | Code | T | A | B | C | Mode | Args  | Description\n")
   io.write("|:----:|:----:|:-:|:-:|:-:|:-:|:-----|:------|:---------------------------------\n")
   for j = 1, 3 do
     local version = "5." .. j
