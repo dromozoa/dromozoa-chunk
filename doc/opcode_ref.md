@@ -437,6 +437,39 @@
 |  R   | argument is a register or a jump offset
 |  K   | argument is a constant or register/constant
 
+```
+5.1
+(*) In OP_CALL, if (B == 0) then B = top. C is the number of returns - 1,
+and can be 0: OP_CALL then sets `top'
+    to last_result+1, so next open instruction (OP_CALL, OP_RETURN,
+OP_SETLIST) may use `top'.
+
+5.2 or 5.3
+(*) In OP_CALL, if (B == 0) then B = top. If (C == 0), then 'top' is
+set to last_result+1, so next open instruction (OP_CALL, OP_RETURN,
+OP_SETLIST) may use 'top'.
+
+(*) In OP_VARARG, if (B == 0) then use actual number of varargs and
+set top (like in OP_CALL with C == 0).
+
+(*) In OP_RETURN, if (B == 0) then return up to 'top'.
+
+5.1
+(*) In OP_SETLIST, if (B == 0) then B = `top'; if (C == 0) then next
+`instruction' is real C
+
+5.2 or 5.3
+(*) In OP_SETLIST, if (B == 0) then B = 'top'; if (C == 0) then next
+'instruction' is EXTRAARG(real C).
+
+(*) In OP_LOADKX, the next 'instruction' is always EXTRAARG.
+
+(*) For comparisons, A specifies what condition the test should accept
+(true or false).
+
+(*) All 'skips' (pc++) assume that next instruction is a jump.
+```
+
 ### 5.1
 
 ```
@@ -445,15 +478,15 @@
     next open instruction (OP_CALL, OP_RETURN, OP_SETLIST) may use `top'.
 
 (*) In OP_VARARG, if (B == 0) then use actual number of varargs and
-    set top (like in OP_CALL with C == 0).
+set top (like in OP_CALL with C == 0).
 
 (*) In OP_RETURN, if (B == 0) then return up to `top'
 
-(*) In OP_SETLIST, if (B == 0) then B = `top';
-    if (C == 0) then next `instruction' is real C
+(*) In OP_SETLIST, if (B == 0) then B = `top'; if (C == 0) then next
+`instruction' is real C
 
 (*) For comparisons, A specifies what condition the test should accept
-    (true or false).
+(true or false).
 
 (*) All `skips' (pc++) assume that next instruction is a jump
 ```
@@ -503,4 +536,6 @@ set top (like in OP_CALL with C == 0).
 
 (*) All 'skips' (pc++) assume that next instruction is a jump.
 ```
+
+
 
