@@ -35,27 +35,49 @@ writer(io.stdout):write_chunk {
     last_line_defined = 0;
     num_params = 0;
     is_var_arg = true;
-    max_stack_size = 2;
+    max_stack_size = 3;
     code = {
       { "GETTABUP", 0, 0, -1 };
-      { "LOADK", 1, -2 };
-      { "CALL", 0, 2, 1 };
+      { "CLOSURE", 1, 0 };
+      { "LOADK", 2, -2 };
+      { "CALL", 1, 2, 0 };
       { "RETURN", 0, 1 };
     };
     constants = {
       "print";
       42;
-    },
+    };
     upvalues = {
       { in_stack = true; idx = 0; name = "_ENV"; }
     };
-    protos = {};
-    line_info = {
-      1;
-      1;
-      1;
-      1;
-    },
+    protos = {
+      {
+        source = "=stdin";
+        line_defined = 0;
+        last_line_defined = 0;
+        num_params = 1;
+        is_var_arg = false;
+        max_stack_size = 2;
+        code = {
+          { "GETUPVAL", 0, 0 };
+          { "LOADK", 1, -1 };
+          { "TAILCALL", 0, 2, 0 };
+          { "TAILCALL", 0, 2, 0 };
+          { "CALL", 0, 2, 0 };
+          { "RETURN", 0, 1 };
+        };
+        constants = {
+          17;
+        };
+        upvalues = {
+          { in_stack = true; idx = 0; name = "p" };
+        };
+        protos = {};
+        line_info = {};
+        loc_vars = {};
+      };
+    };
+    line_info = {};
     loc_vars = {};
   }
 }

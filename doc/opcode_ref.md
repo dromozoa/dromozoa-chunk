@@ -150,6 +150,9 @@ In [LOADKX](#loadkx), the next instruction is always [EXTRAARG](#extraarg).
 | 5.2  | 0x0B | 0 | 1 | U | U | ABC  | A B C | `R(A) := {} (size = B,C)`
 | 5.3  | 0x0B | 0 | 1 | U | U | ABC  | A B C | `R(A) := {} (size = B,C)`
 
+* `B`は配列部のサイズ。
+* `C`はハッシュ部のサイズ。
+
 ## SELF
 
 | Ver. | Code | T | A | B | C | Mode | Args  | Description
@@ -336,8 +339,6 @@ In [LOADKX](#loadkx), the next instruction is always [EXTRAARG](#extraarg).
 | 5.2  | 0x1D | 0 | 1 | U | U | ABC  | A B C | `R(A), ..., R(A+C-2) := R(A)(R(A+1), ..., R(A+B-1))`
 | 5.3  | 0x24 | 0 | 1 | U | U | ABC  | A B C | `R(A), ..., R(A+C-2) := R(A)(R(A+1), ..., R(A+B-1))`
 
-### Notes
-
 * In [CALL](#call), if `(B == 0)` then `B = top`. If `(C == 0)`, then `top` is set to `last_result+1`, so next open instruction ([CALL](#call), [RETURN](#return), [SETLIST](#setlist)) may use `top`.
 
 ## TAILCALL
@@ -348,8 +349,6 @@ In [LOADKX](#loadkx), the next instruction is always [EXTRAARG](#extraarg).
 | 5.2  | 0x1E | 0 | 1 | U | U | ABC  | A B C | `return R(A)(R(A+1), ..., R(A+B-1))`
 | 5.3  | 0x25 | 0 | 1 | U | U | ABC  | A B C | `return R(A)(R(A+1), ..., R(A+B-1))`
 
-### Notes
-
 * `C`は`0`でなければならない。
 
 ## RETURN
@@ -359,8 +358,6 @@ In [LOADKX](#loadkx), the next instruction is always [EXTRAARG](#extraarg).
 | 5.1  | 0x1E | 0 | 0 | U | N | ABC  | A B   | `return R(A), ..., R(A+B-2)`
 | 5.2  | 0x1F | 0 | 0 | U | N | ABC  | A B   | `return R(A), ..., R(A+B-2)`
 | 5.3  | 0x26 | 0 | 0 | U | N | ABC  | A B   | `return R(A), ..., R(A+B-2)`
-
-### Notes
 
 * In [RETURN](#return), if `(B == 0)` then return up to `top`.
 
@@ -403,14 +400,14 @@ In [LOADKX](#loadkx), the next instruction is always [EXTRAARG](#extraarg).
 | 5.2  | 0x24 | 0 | 0 | U | U | ABC  | A B C | `R(A)[(C-1)*FPF+i] := R(A+i), 1 <= i <= B`
 | 5.3  | 0x2B | 0 | 0 | U | U | ABC  | A B C | `R(A)[(C-1)*FPF+i] := R(A+i), 1 <= i <= B`
 
-### Notes (5.1)
-
 * `FPF = 50`
+
+### 5.1
+
 * In [SETLIST](#setlist), if `(B == 0)` then `B = top`; if `(C == 0)` then next instruction is real `C`.
 
-### Notes
+### 5.2 or 5.3
 
-* `FPF = 50`
 * In [SETLIST](#setlist), if `(B == 0)` then `B = top`; if `(C == 0)` then next instruction is [EXTRAARG](#extraarg)(real `C`).
 
 ## CLOSURE
@@ -421,8 +418,6 @@ In [LOADKX](#loadkx), the next instruction is always [EXTRAARG](#extraarg).
 | 5.2  | 0x25 | 0 | 1 | U | N | ABx  | A Bx  | `R(A) := closure(KPROTO[Bx])`
 | 5.3  | 0x2C | 0 | 1 | U | N | ABx  | A Bx  | `R(A) := closure(KPROTO[Bx])`
 
-### Notes (5.1)
-
 * `n`は上位値の数。
 
 ## VARARG
@@ -432,8 +427,6 @@ In [LOADKX](#loadkx), the next instruction is always [EXTRAARG](#extraarg).
 | 5.1  | 0x25 | 0 | 1 | U | N | ABC  | A B   | `R(A), R(A+1), ..., R(A+B-1) = vararg`
 | 5.2  | 0x26 | 0 | 1 | U | N | ABC  | A B   | `R(A), R(A+1), ..., R(A+B-2) = vararg`
 | 5.3  | 0x2D | 0 | 1 | U | N | ABC  | A B   | `R(A), R(A+1), ..., R(A+B-2) = vararg`
-
-### Notes
 
 * In [VARARG](#vararg), if `(B == 0)` then use actual number of varargs and set top (like in [CALL](#call) with `C == 0`).
 
