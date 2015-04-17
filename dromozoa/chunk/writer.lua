@@ -241,8 +241,8 @@ return function (handle)
     for i = 1, n do
       local loc_var = loc_vars[i]
       self:write_byte(loc_var.varname)
-      self:write_byte(loc_var.start_pc)
-      self:write_byte(loc_var.end_pc)
+      self:write_byte(loc_var.start_pc - 1)
+      self:write_byte(loc_var.end_pc - 1)
     end
   end
 

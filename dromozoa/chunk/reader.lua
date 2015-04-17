@@ -248,13 +248,13 @@ return function (handle)
 
   function self:read_debug_loc_vars(F)
     local loc_vars = {}
-    F.loc_vars = {}
+    F.loc_vars = loc_vars
     for i = 1, self:read_int() do
       local loc_var = {}
       loc_vars[i] = loc_var
       loc_var.varname = self:read_string()
-      loc_var.start_pc = self:read_int()
-      loc_var.end_pc = self:read_int()
+      loc_var.start_pc = self:read_int() + 1
+      loc_var.end_pc = self:read_int() + 1
     end
   end
 
