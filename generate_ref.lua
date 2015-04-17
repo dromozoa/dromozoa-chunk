@@ -103,9 +103,9 @@ for i = 1, #data do
     if v.opcode then
       local desc = v.desc
       if desc:match "|" then
-        desc = "<code>" .. desc:gsub(";%s*", ";</code> <code>"):gsub("|", "&#124;") .. "</code>"
+        desc = "<code>" .. desc:gsub("|", "&#124;") .. "</code>"
       else
-        desc = "`" .. desc:gsub(";%s*", ";` `") .. "`"
+        desc = "`" .. desc .. "`"
       end
 
       io.write(

@@ -78,9 +78,9 @@
 
 | Ver. | Code | T | A | B | C | Mode | Args  | Desc
 |:----:|:----:|:-:|:-:|:-:|:-:|:-----|:------|:---------------------------------
-| 5.1  | 0x02 | 0 | 1 | U | U | ABC  | A B C | `R(A) := (Bool)B;` `if (C) pc++`
-| 5.2  | 0x03 | 0 | 1 | U | U | ABC  | A B C | `R(A) := (Bool)B;` `if (C) pc++`
-| 5.3  | 0x03 | 0 | 1 | U | U | ABC  | A B C | `R(A) := (Bool)B;` `if (C) pc++`
+| 5.1  | 0x02 | 0 | 1 | U | U | ABC  | A B C | `R(A) := (Bool)B; if (C) pc++`
+| 5.2  | 0x03 | 0 | 1 | U | U | ABC  | A B C | `R(A) := (Bool)B; if (C) pc++`
+| 5.3  | 0x03 | 0 | 1 | U | U | ABC  | A B C | `R(A) := (Bool)B; if (C) pc++`
 
 ## LOADNIL
 
@@ -148,9 +148,9 @@
 
 | Ver. | Code | T | A | B | C | Mode | Args  | Desc
 |:----:|:----:|:-:|:-:|:-:|:-:|:-----|:------|:---------------------------------
-| 5.1  | 0x0B | 0 | 1 | R | K | ABC  | A B C | `R(A+1) := R(B);` `R(A) := R(B)[RK(C)]`
-| 5.2  | 0x0C | 0 | 1 | R | K | ABC  | A B C | `R(A+1) := R(B);` `R(A) := R(B)[RK(C)]`
-| 5.3  | 0x0C | 0 | 1 | R | K | ABC  | A B C | `R(A+1) := R(B);` `R(A) := R(B)[RK(C)]`
+| 5.1  | 0x0B | 0 | 1 | R | K | ABC  | A B C | `R(A+1) := R(B); R(A) := R(B)[RK(C)]`
+| 5.2  | 0x0C | 0 | 1 | R | K | ABC  | A B C | `R(A+1) := R(B); R(A) := R(B)[RK(C)]`
+| 5.3  | 0x0C | 0 | 1 | R | K | ABC  | A B C | `R(A+1) := R(B); R(A) := R(B)[RK(C)]`
 
 ## ADD
 
@@ -279,8 +279,8 @@
 | Ver. | Code | T | A | B | C | Mode | Args  | Desc
 |:----:|:----:|:-:|:-:|:-:|:-:|:-----|:------|:---------------------------------
 | 5.1  | 0x16 | 0 | 0 | R | N | AsBx | sBx   | `pc+=sBx`
-| 5.2  | 0x17 | 0 | 0 | R | N | AsBx | A sBx | `pc+=sBx;` `if (A) close all upvalues >= R(A - 1)`
-| 5.3  | 0x1E | 0 | 0 | R | N | AsBx | A sBx | `pc+=sBx;` `if (A) close all upvalues >= R(A - 1)`
+| 5.2  | 0x17 | 0 | 0 | R | N | AsBx | A sBx | `pc+=sBx; if (A) close all upvalues >= R(A - 1)`
+| 5.3  | 0x1E | 0 | 0 | R | N | AsBx | A sBx | `pc+=sBx; if (A) close all upvalues >= R(A - 1)`
 
 ## EQ
 
@@ -350,32 +350,32 @@
 
 | Ver. | Code | T | A | B | C | Mode | Args  | Desc
 |:----:|:----:|:-:|:-:|:-:|:-:|:-----|:------|:---------------------------------
-| 5.1  | 0x1F | 0 | 1 | R | N | AsBx | A sBx | `R(A)+=R(A+2);` `if R(A) <?= R(A+1) then { pc+=sBx;` `R(A+3)=R(A) }`
-| 5.2  | 0x20 | 0 | 1 | R | N | AsBx | A sBx | `R(A)+=R(A+2);` `if R(A) <?= R(A+1) then { pc+=sBx;` `R(A+3)=R(A) }`
-| 5.3  | 0x27 | 0 | 1 | R | N | AsBx | A sBx | `R(A)+=R(A+2);` `if R(A) <?= R(A+1) then { pc+=sBx;` `R(A+3)=R(A) }`
+| 5.1  | 0x1F | 0 | 1 | R | N | AsBx | A sBx | `R(A)+=R(A+2); if R(A) <?= R(A+1) then { pc+=sBx; R(A+3)=R(A) }`
+| 5.2  | 0x20 | 0 | 1 | R | N | AsBx | A sBx | `R(A)+=R(A+2); if R(A) <?= R(A+1) then { pc+=sBx; R(A+3)=R(A) }`
+| 5.3  | 0x27 | 0 | 1 | R | N | AsBx | A sBx | `R(A)+=R(A+2); if R(A) <?= R(A+1) then { pc+=sBx; R(A+3)=R(A) }`
 
 ## FORPREP
 
 | Ver. | Code | T | A | B | C | Mode | Args  | Desc
 |:----:|:----:|:-:|:-:|:-:|:-:|:-----|:------|:---------------------------------
-| 5.1  | 0x20 | 0 | 1 | R | N | AsBx | A sBx | `R(A)-=R(A+2);` `pc+=sBx`
-| 5.2  | 0x21 | 0 | 1 | R | N | AsBx | A sBx | `R(A)-=R(A+2);` `pc+=sBx`
-| 5.3  | 0x28 | 0 | 1 | R | N | AsBx | A sBx | `R(A)-=R(A+2);` `pc+=sBx`
+| 5.1  | 0x20 | 0 | 1 | R | N | AsBx | A sBx | `R(A)-=R(A+2); pc+=sBx`
+| 5.2  | 0x21 | 0 | 1 | R | N | AsBx | A sBx | `R(A)-=R(A+2); pc+=sBx`
+| 5.3  | 0x28 | 0 | 1 | R | N | AsBx | A sBx | `R(A)-=R(A+2); pc+=sBx`
 
 ## TFORCALL
 
 | Ver. | Code | T | A | B | C | Mode | Args  | Desc
 |:----:|:----:|:-:|:-:|:-:|:-:|:-----|:------|:---------------------------------
-| 5.2  | 0x22 | 0 | 0 | N | U | ABC  | A C   | `R(A+3), ... ,R(A+2+C) := R(A)(R(A+1), R(A+2));` ``
-| 5.3  | 0x29 | 0 | 0 | N | U | ABC  | A C   | `R(A+3), ... ,R(A+2+C) := R(A)(R(A+1), R(A+2));` ``
+| 5.2  | 0x22 | 0 | 0 | N | U | ABC  | A C   | `R(A+3), ... ,R(A+2+C) := R(A)(R(A+1), R(A+2));`
+| 5.3  | 0x29 | 0 | 0 | N | U | ABC  | A C   | `R(A+3), ... ,R(A+2+C) := R(A)(R(A+1), R(A+2));`
 
 ## TFORLOOP
 
 | Ver. | Code | T | A | B | C | Mode | Args  | Desc
 |:----:|:----:|:-:|:-:|:-:|:-:|:-----|:------|:---------------------------------
-| 5.1  | 0x21 | 1 | 0 | N | U | ABC  | A C   | `R(A+3), ... ,R(A+2+C) := R(A)(R(A+1), R(A+2));` `if R(A+3) ~= nil then R(A+2)=R(A+3) else pc++`
-| 5.2  | 0x23 | 0 | 1 | R | N | AsBx | A sBx | `if R(A+1) ~= nil then { R(A)=R(A+1);` `pc += sBx }`
-| 5.3  | 0x2A | 0 | 1 | R | N | AsBx | A sBx | `if R(A+1) ~= nil then { R(A)=R(A+1);` `pc += sBx }`
+| 5.1  | 0x21 | 1 | 0 | N | U | ABC  | A C   | `R(A+3), ... ,R(A+2+C) := R(A)(R(A+1), R(A+2)); if R(A+3) ~= nil then R(A+2)=R(A+3) else pc++`
+| 5.2  | 0x23 | 0 | 1 | R | N | AsBx | A sBx | `if R(A+1) ~= nil then { R(A)=R(A+1); pc += sBx }`
+| 5.3  | 0x2A | 0 | 1 | R | N | AsBx | A sBx | `if R(A+1) ~= nil then { R(A)=R(A+1); pc += sBx }`
 
 ## SETLIST
 
