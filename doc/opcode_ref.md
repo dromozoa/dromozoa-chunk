@@ -270,9 +270,9 @@
 
 | Ver. | Code | T | A | B | C | Mode | Args  | Desc
 |:----:|:----:|:-:|:-:|:-:|:-:|:-----|:------|:---------------------------------
-| 5.1  | 0x15 | 0 | 1 | R | R | ABC  | A B C | `R(A) := R(B).. ... ..R(C)`
-| 5.2  | 0x16 | 0 | 1 | R | R | ABC  | A B C | `R(A) := R(B).. ... ..R(C)`
-| 5.3  | 0x1D | 0 | 1 | R | R | ABC  | A B C | `R(A) := R(B).. ... ..R(C)`
+| 5.1  | 0x15 | 0 | 1 | R | R | ABC  | A B C | `R(A) := R(B) .. ... .. R(C)`
+| 5.2  | 0x16 | 0 | 1 | R | R | ABC  | A B C | `R(A) := R(B) .. ... .. R(C)`
+| 5.3  | 0x1D | 0 | 1 | R | R | ABC  | A B C | `R(A) := R(B) .. ... .. R(C)`
 
 ## JMP
 
@@ -326,17 +326,17 @@
 
 | Ver. | Code | T | A | B | C | Mode | Args  | Desc
 |:----:|:----:|:-:|:-:|:-:|:-:|:-----|:------|:---------------------------------
-| 5.1  | 0x1C | 0 | 1 | U | U | ABC  | A B C | `R(A), ... ,R(A+C-2) := R(A)(R(A+1), ... ,R(A+B-1))`
-| 5.2  | 0x1D | 0 | 1 | U | U | ABC  | A B C | `R(A), ... ,R(A+C-2) := R(A)(R(A+1), ... ,R(A+B-1))`
-| 5.3  | 0x24 | 0 | 1 | U | U | ABC  | A B C | `R(A), ... ,R(A+C-2) := R(A)(R(A+1), ... ,R(A+B-1))`
+| 5.1  | 0x1C | 0 | 1 | U | U | ABC  | A B C | `R(A), ..., R(A+C-2) := R(A)(R(A+1), ..., R(A+B-1))`
+| 5.2  | 0x1D | 0 | 1 | U | U | ABC  | A B C | `R(A), ..., R(A+C-2) := R(A)(R(A+1), ..., R(A+B-1))`
+| 5.3  | 0x24 | 0 | 1 | U | U | ABC  | A B C | `R(A), ..., R(A+C-2) := R(A)(R(A+1), ..., R(A+B-1))`
 
 ## TAILCALL
 
 | Ver. | Code | T | A | B | C | Mode | Args  | Desc
 |:----:|:----:|:-:|:-:|:-:|:-:|:-----|:------|:---------------------------------
-| 5.1  | 0x1D | 0 | 1 | U | U | ABC  | A B C | `return R(A)(R(A+1), ... ,R(A+B-1))`
-| 5.2  | 0x1E | 0 | 1 | U | U | ABC  | A B C | `return R(A)(R(A+1), ... ,R(A+B-1))`
-| 5.3  | 0x25 | 0 | 1 | U | U | ABC  | A B C | `return R(A)(R(A+1), ... ,R(A+B-1))`
+| 5.1  | 0x1D | 0 | 1 | U | U | ABC  | A B C | `return R(A)(R(A+1), ..., R(A+B-1))`
+| 5.2  | 0x1E | 0 | 1 | U | U | ABC  | A B C | `return R(A)(R(A+1), ..., R(A+B-1))`
+| 5.3  | 0x25 | 0 | 1 | U | U | ABC  | A B C | `return R(A)(R(A+1), ..., R(A+B-1))`
 
 ## RETURN
 
@@ -366,14 +366,14 @@
 
 | Ver. | Code | T | A | B | C | Mode | Args  | Desc
 |:----:|:----:|:-:|:-:|:-:|:-:|:-----|:------|:---------------------------------
-| 5.2  | 0x22 | 0 | 0 | N | U | ABC  | A C   | `R(A+3), ... ,R(A+2+C) := R(A)(R(A+1), R(A+2));`
-| 5.3  | 0x29 | 0 | 0 | N | U | ABC  | A C   | `R(A+3), ... ,R(A+2+C) := R(A)(R(A+1), R(A+2));`
+| 5.2  | 0x22 | 0 | 0 | N | U | ABC  | A C   | `R(A+3), ..., R(A+2+C) := R(A)(R(A+1), R(A+2));`
+| 5.3  | 0x29 | 0 | 0 | N | U | ABC  | A C   | `R(A+3), ..., R(A+2+C) := R(A)(R(A+1), R(A+2));`
 
 ## TFORLOOP
 
 | Ver. | Code | T | A | B | C | Mode | Args  | Desc
 |:----:|:----:|:-:|:-:|:-:|:-:|:-----|:------|:---------------------------------
-| 5.1  | 0x21 | 1 | 0 | N | U | ABC  | A C   | `R(A+3), ... ,R(A+2+C) := R(A)(R(A+1), R(A+2)); if R(A+3) ~= nil then R(A+2)=R(A+3) else pc++`
+| 5.1  | 0x21 | 1 | 0 | N | U | ABC  | A C   | `R(A+3), ..., R(A+2+C) := R(A)(R(A+1), R(A+2)); if R(A+3) ~= nil then R(A+2)=R(A+3) else pc++`
 | 5.2  | 0x23 | 0 | 1 | R | N | AsBx | A sBx | `if R(A+1) ~= nil then { R(A)=R(A+1); pc += sBx }`
 | 5.3  | 0x2A | 0 | 1 | R | N | AsBx | A sBx | `if R(A+1) ~= nil then { R(A)=R(A+1); pc += sBx }`
 
@@ -389,7 +389,7 @@
 
 | Ver. | Code | T | A | B | C | Mode | Args  | Desc
 |:----:|:----:|:-:|:-:|:-:|:-:|:-----|:------|:---------------------------------
-| 5.1  | 0x24 | 0 | 1 | U | N | ABx  | A Bx  | `R(A) := closure(KPROTO[Bx], R(A), ... ,R(A+n))`
+| 5.1  | 0x24 | 0 | 1 | U | N | ABx  | A Bx  | `R(A) := closure(KPROTO[Bx], R(A), ..., R(A+n))`
 | 5.2  | 0x25 | 0 | 1 | U | N | ABx  | A Bx  | `R(A) := closure(KPROTO[Bx])`
 | 5.3  | 0x2C | 0 | 1 | U | N | ABx  | A Bx  | `R(A) := closure(KPROTO[Bx])`
 
