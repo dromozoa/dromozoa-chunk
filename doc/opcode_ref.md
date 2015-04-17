@@ -74,6 +74,10 @@
 | 5.2  | 0x02 | 0 | 1 | N | N | ABx  | A     | `R(A) := Kst(extra arg)`
 | 5.3  | 0x02 | 0 | 1 | N | N | ABx  | A     | `R(A) := Kst(extra arg)`
 
+### Notes
+
+In [LOADKX](#loadkx), the next instruction is always [EXTRAARG](#extraarg).
+
 ## LOADBOOL
 
 | Ver. | Code | T | A | B | C | Mode | Args  | Description
@@ -86,7 +90,7 @@
 
 | Ver. | Code | T | A | B | C | Mode | Args  | Description
 |:----:|:----:|:-:|:-:|:-:|:-:|:-----|:------|:---------------------------------
-| 5.1  | 0x03 | 0 | 1 | R | N | ABC  | A B   | `R(A) := ... := R(B) := nil`
+| 5.1  | 0x03 | 0 | 1 | R | N | ABC  | A B   | `R(A), ..., R(B) := nil`
 | 5.2  | 0x04 | 0 | 1 | U | N | ABC  | A B   | `R(A), R(A+1), ..., R(A+B) := nil`
 | 5.3  | 0x04 | 0 | 1 | U | N | ABC  | A B   | `R(A), R(A+1), ..., R(A+B) := nil`
 
@@ -330,6 +334,10 @@
 | 5.2  | 0x1D | 0 | 1 | U | U | ABC  | A B C | `R(A), ..., R(A+C-2) := R(A)(R(A+1), ..., R(A+B-1))`
 | 5.3  | 0x24 | 0 | 1 | U | U | ABC  | A B C | `R(A), ..., R(A+C-2) := R(A)(R(A+1), ..., R(A+B-1))`
 
+### Notes
+
+* In [CALL](#call), if `(B == 0)` then `B = top`. If `(C == 0)`, then `top` is set to `last_result+1`, so next open instruction ([CALL](#call), [RETURN](#return), [SETLIST](#setlist)) may use `top`.
+
 ## TAILCALL
 
 | Ver. | Code | T | A | B | C | Mode | Args  | Description
@@ -342,9 +350,13 @@
 
 | Ver. | Code | T | A | B | C | Mode | Args  | Description
 |:----:|:----:|:-:|:-:|:-:|:-:|:-----|:------|:---------------------------------
-| 5.1  | 0x1E | 0 | 0 | U | N | ABC  | A B   | `return R(A), ... ,R(A+B-2) (see note)`
-| 5.2  | 0x1F | 0 | 0 | U | N | ABC  | A B   | `return R(A), ... ,R(A+B-2) (see note)`
-| 5.3  | 0x26 | 0 | 0 | U | N | ABC  | A B   | `return R(A), ... ,R(A+B-2) (see note)`
+| 5.1  | 0x1E | 0 | 0 | U | N | ABC  | A B   | `return R(A), ..., R(A+B-2)`
+| 5.2  | 0x1F | 0 | 0 | U | N | ABC  | A B   | `return R(A), ..., R(A+B-2)`
+| 5.3  | 0x26 | 0 | 0 | U | N | ABC  | A B   | `return R(A), ..., R(A+B-2)`
+
+### Notes
+
+* In [RETURN](#return), if `(B == 0)` then return up to `top`.
 
 ## FORLOOP
 
@@ -385,6 +397,16 @@
 | 5.2  | 0x24 | 0 | 0 | U | U | ABC  | A B C | `R(A)[(C-1)*FPF+i] := R(A+i), 1 <= i <= B`
 | 5.3  | 0x2B | 0 | 0 | U | U | ABC  | A B C | `R(A)[(C-1)*FPF+i] := R(A+i), 1 <= i <= B`
 
+### Notes (5.1)
+
+* `FPF = 50`
+* In [SETLIST](#setlist), if `(B == 0)` then `B = top`; if `(C == 0)` then next instruction is real `C`.
+
+### Notes
+
+* `FPF = 50`
+* In [SETLIST](#setlist), if `(B == 0)` then `B = top`; if `(C == 0)` then next instruction is [EXTRAARG](#extraarg)(real `C`).
+
 ## CLOSURE
 
 | Ver. | Code | T | A | B | C | Mode | Args  | Description
@@ -393,6 +415,10 @@
 | 5.2  | 0x25 | 0 | 1 | U | N | ABx  | A Bx  | `R(A) := closure(KPROTO[Bx])`
 | 5.3  | 0x2C | 0 | 1 | U | N | ABx  | A Bx  | `R(A) := closure(KPROTO[Bx])`
 
+### Notes (5.1)
+
+* `n`は上位値の数。
+
 ## VARARG
 
 | Ver. | Code | T | A | B | C | Mode | Args  | Description
@@ -400,6 +426,10 @@
 | 5.1  | 0x25 | 0 | 1 | U | N | ABC  | A B   | `R(A), R(A+1), ..., R(A+B-1) = vararg`
 | 5.2  | 0x26 | 0 | 1 | U | N | ABC  | A B   | `R(A), R(A+1), ..., R(A+B-2) = vararg`
 | 5.3  | 0x2D | 0 | 1 | U | N | ABC  | A B   | `R(A), R(A+1), ..., R(A+B-2) = vararg`
+
+### Notes
+
+* In [VARARG](#vararg), if `(B == 0)` then use actual number of varargs and set top (like in [CALL](#call) with `C == 0`).
 
 ## EXTRAARG
 
@@ -428,8 +458,6 @@
 
 ## Notes
 
-### Mask
-
 | Mask | Description
 |:----:|--------------------------------------------
 |  N   | argument is not used
@@ -437,105 +465,5 @@
 |  R   | argument is a register or a jump offset
 |  K   | argument is a constant or register/constant
 
-```
-5.1
-(*) In OP_CALL, if (B == 0) then B = top. C is the number of returns - 1,
-and can be 0: OP_CALL then sets `top'
-    to last_result+1, so next open instruction (OP_CALL, OP_RETURN,
-OP_SETLIST) may use `top'.
-
-5.2 or 5.3
-(*) In OP_CALL, if (B == 0) then B = top. If (C == 0), then 'top' is
-set to last_result+1, so next open instruction (OP_CALL, OP_RETURN,
-OP_SETLIST) may use 'top'.
-
-(*) In OP_VARARG, if (B == 0) then use actual number of varargs and
-set top (like in OP_CALL with C == 0).
-
-(*) In OP_RETURN, if (B == 0) then return up to 'top'.
-
-5.1
-(*) In OP_SETLIST, if (B == 0) then B = `top'; if (C == 0) then next
-`instruction' is real C
-
-5.2 or 5.3
-(*) In OP_SETLIST, if (B == 0) then B = 'top'; if (C == 0) then next
-'instruction' is EXTRAARG(real C).
-
-(*) In OP_LOADKX, the next 'instruction' is always EXTRAARG.
-
-(*) For comparisons, A specifies what condition the test should accept
-(true or false).
-
-(*) All 'skips' (pc++) assume that next instruction is a jump.
-```
-
-### 5.1
-
-```
-(*) In OP_CALL, if (B == 0) then B = top. C is the number of returns - 1,
-    and can be 0: OP_CALL then sets `top' to last_result+1, so
-    next open instruction (OP_CALL, OP_RETURN, OP_SETLIST) may use `top'.
-
-(*) In OP_VARARG, if (B == 0) then use actual number of varargs and
-set top (like in OP_CALL with C == 0).
-
-(*) In OP_RETURN, if (B == 0) then return up to `top'
-
-(*) In OP_SETLIST, if (B == 0) then B = `top'; if (C == 0) then next
-`instruction' is real C
-
-(*) For comparisons, A specifies what condition the test should accept
-(true or false).
-
-(*) All `skips' (pc++) assume that next instruction is a jump
-```
-
-### 5.2
-
-```
-(*) In OP_CALL, if (B == 0) then B = top. If (C == 0), then `top' is
-set to last_result+1, so next open instruction (OP_CALL, OP_RETURN,
-OP_SETLIST) may use `top'.
-
-(*) In OP_VARARG, if (B == 0) then use actual number of varargs and
-set top (like in OP_CALL with C == 0).
-
-(*) In OP_RETURN, if (B == 0) then return up to `top'.
-
-(*) In OP_SETLIST, if (B == 0) then B = `top'; if (C == 0) then next
-'instruction' is EXTRAARG(real C).
-
-(*) In OP_LOADKX, the next 'instruction' is always EXTRAARG.
-
-(*) For comparisons, A specifies what condition the test should accept
-(true or false).
-
-(*) All `skips' (pc++) assume that next instruction is a jump.
-```
-
-### 5.3
-
-```
-(*) In OP_CALL, if (B == 0) then B = top. If (C == 0), then 'top' is
-set to last_result+1, so next open instruction (OP_CALL, OP_RETURN,
-OP_SETLIST) may use 'top'.
-
-(*) In OP_VARARG, if (B == 0) then use actual number of varargs and
-set top (like in OP_CALL with C == 0).
-
-(*) In OP_RETURN, if (B == 0) then return up to 'top'.
-
-(*) In OP_SETLIST, if (B == 0) then B = 'top'; if (C == 0) then next
-'instruction' is EXTRAARG(real C).
-
-(*) In OP_LOADKX, the next 'instruction' is always EXTRAARG.
-
-(*) For comparisons, A specifies what condition the test should accept
-(true or false).
-
-(*) All 'skips' (pc++) assume that next instruction is a jump.
-```
-
-
-
+* For comparisons, A specifies what condition the test should accept (`true` or `false`).
+* All skips (`pc++`) assume that next instruction is a jump.
