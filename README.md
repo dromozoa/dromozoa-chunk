@@ -1,1 +1,3 @@
-# dromozoa-assembler
+# dromozoa-chunk
+
+Binary chunk reader and writer.
